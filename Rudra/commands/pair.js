@@ -1,105 +1,475 @@
-module.exports.config = {
-  name: "pair",
-  version: "1.0.0",
-  hasPermssion: 0,
-  credits: "Rudra X Priyansh",
-  description: "Ye jodi likhi hai bhagwan ne - Kalm tha Rudra 👑",
-  commandCategory: "love",
-  cooldowns: 2,
-  dependencies: {
-    "axios": "",
-    "fs-extra": "",
-    "canvas": ""
+/**
+ * Pair Command
+ * Match users based on opposite gender with visual canvas
+ */
+
+const fs = require('fs');
+const fsPromises = fs.promises;
+const path = require('path');
+const axios = require('axios');
+const { createCanvas, loadImage } = require('canvas');
+
+const FALLBACK_GRAPH_TOKEN = '6628568379%7Cc1e620fa708a1d5696fb991c1bde5662';
+
+module.exports = {
+  config: {
+    name: 'pair',
+    aliases: ['match', 'couple'],
+    description: 'Find your perfect match based on gender preferences',
+    usage: '{prefix}pair',
+    credit: '𝐏𝐫𝐢𝐲𝐚𝐧𝐬𝐡 𝐑𝐚𝐣𝐩𝐮𝐭',
+    hasPrefix: true,
+    permission: 'PUBLIC',
+    cooldown: 5,
+    category: 'FUN'
+  },
+
+  run: async function({ api, message, args }) {
+    const { threadID, messageID, senderID } = message;
+
+    try {
+      // Get sender info using getUserInfo API
+      const senderInfo = await api.getUserInfo(senderID);
+      if (!senderInfo || !senderInfo[senderID]) {
+        return api.sendMessage("❌ Your profile data not found. Please try again later.", threadID, messageID);
+      }
+
+      const senderData = senderInfo[senderID];
+      console.log(senderData);
+      const senderGender = senderData.gender;
+      const senderName = senderData.name || "Unknown User";
+
+      // Determine target gender (opposite gender)
+      let targetGender;
+      // Check for female gender (1 or 'female')
+      if (senderGender === 1 || senderGender === 'FEMALE') {
+        targetGender = [2, 'MALE']; // Looking for male users
+      } 
+      // Check for male gender (2 or 'male')
+      else if (senderGender === 2 || senderGender === 'MALE') {
+        targetGender = [1, 'FEMALE']; // Looking for female users
+      } else {
+        return api.sendMessage("❌ Your gender data is not clear. Please update your profile.", threadID, messageID);
+      }
+
+      // Get all thread members except sender
+      const threadInfo = await api.getThreadInfo(threadID);
+      const participantIDs = threadInfo.participantIDs.filter(id => id !== senderID);
+
+      if (participantIDs.length === 0) {
+        return api.sendMessage("❌ No other members found in this group to match with.", threadID, messageID);
+      }
+
+      // Find users with opposite gender
+      const potentialMatches = [];
+      for (const userID of participantIDs) {
+        try {
+          const userInfo = await api.getUserInfo(userID);
+          if (userInfo && userInfo[userID]) {
+            const userData = userInfo[userID];
+            const userGender = userData.gender;
+            
+            // Check if user has opposite gender
+            if (targetGender.includes(userGender)) {
+              potentialMatches.push({
+                userID: userID,
+                name: userData.name || "Unknown User",
+                gender: userGender
+              });
+            }
+          }
+        } catch (error) {
+          console.log(`[pair] Could not get info for user ${userID}`);
+        }
+      }
+
+      if (potentialMatches.length === 0) {
+        const genderText = targetGender.includes(1) || targetGender.includes('female') ? "female" : "male";
+        return api.sendMessage(`❌ No ${genderText} member found in this group to pair with you.`, threadID, messageID);
+      }
+
+      // Select random match from potential matches
+      const randomMatch = potentialMatches[Math.floor(Math.random() * potentialMatches.length)];
+      const matchPercentage = Math.floor(Math.random() * 40) + 60; // Random percentage 60-99%
+
+      // Get random pair image from cache folder
+      const pairImagesPath = path.join(__dirname, 'cache', 'pairs');
+      const pairImages = fs.readdirSync(pairImagesPath).filter(file => 
+        file.endsWith('.png') || file.endsWith('.gif') || file.endsWith('.jpg')
+      );
+
+      if (pairImages.length === 0) {
+        return api.sendMessage("❌ Pair images not found in cache folder.", threadID, messageID);
+      }
+
+      const randomPairImage = pairImages[Math.floor(Math.random() * pairImages.length)];
+      const pairImagePath = path.join(pairImagesPath, randomPairImage);
+
+      // Resolve token with fallback to stalk command token
+      const graphToken = (global.config?.facebookToken && global.config.facebookToken.trim().length > 0)
+        ? global.config.facebookToken.trim()
+        : FALLBACK_GRAPH_TOKEN;
+
+      // Download profile pictures
+      const senderProfileUrl = `https://graph.facebook.com/${senderID}/picture?height=720&width=720&access_token=${graphToken}`;
+      const matchProfileUrl = `https://graph.facebook.com/${randomMatch.userID}/picture?height=720&width=720&access_token=${graphToken}`;
+
+      // Create temp paths
+      const tempDir = path.join(__dirname, 'temporary');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      const senderProfilePath = path.join(tempDir, `sender_${senderID}.jpg`);
+      const matchProfilePath = path.join(tempDir, `match_${randomMatch.userID}.jpg`);
+      const outputPath = path.join(tempDir, `pair_${Date.now()}.png`);
+
+      // Download images with graceful fallbacks
+      await Promise.all([
+        ensureProfileImage(senderProfileUrl, senderProfilePath, senderName),
+        ensureProfileImage(matchProfileUrl, matchProfilePath, randomMatch.name)
+      ]);
+
+      // Load background image first to get dimensions
+      const pairImage = await loadImage(pairImagePath);
+      
+      // Create canvas with background image dimensions
+      const canvas = createCanvas(pairImage.width, pairImage.height);
+      const ctx = canvas.getContext('2d');
+
+      // Load profile images
+      const senderProfile = await loadImage(senderProfilePath);
+      const matchProfile = await loadImage(matchProfilePath);
+
+      // Draw background image first
+      ctx.drawImage(pairImage, 0, 0, pairImage.width, pairImage.height);
+
+      // Optimized for 1920x1080 resolution
+      const canvasWidth = pairImage.width;
+      const canvasHeight = pairImage.height;
+      
+      // Much larger circle radius for better visibility on HD images
+      const circleRadius = 230; // Increased from 120 to 180px
+      const margin = 350; // Tripled from 150 to 450px for more padding
+      
+      // Position circles for 1920x1080 layout with increased padding
+      const leftCircleX = margin;
+      const rightCircleX = canvasWidth - margin;
+      const circleY = canvasHeight / 2;
+
+      // Enhanced border designs for 1920x1080 resolution
+      const borderDesigns = [
+        { color: '#FF69B4', width: 8, style: 'solid' },
+        { color: '#FF1493', width: 10, style: 'double' },
+        { color: '#FFB6C1', width: 7, style: 'dashed' },
+        { color: '#FF6347', width: 9, style: 'gradient' },
+        { color: '#DA70D6', width: 8, style: 'rainbow' },
+        { color: '#FF4500', width: 12, style: 'glow' },
+        { color: '#DC143C', width: 6, style: 'hearts' },
+        { color: '#B22222', width: 8, style: 'stars' },
+        { color: '#9932CC', width: 10, style: 'neon' },
+        { color: '#FF1493', width: 8, style: 'sparkle' }
+      ];
+
+      const leftDesign = borderDesigns[Math.floor(Math.random() * borderDesigns.length)];
+      const rightDesign = borderDesigns[Math.floor(Math.random() * borderDesigns.length)];
+
+      // Draw sender profile (left circle)
+      drawCircularProfile(ctx, senderProfile, leftCircleX, circleY, circleRadius, leftDesign);
+
+      // Draw match profile (right circle)
+      drawCircularProfile(ctx, matchProfile, rightCircleX, circleY, circleRadius, rightDesign);
+
+      // Save canvas to file
+      const buffer = canvas.toBuffer('image/png');
+      fs.writeFileSync(outputPath, buffer);
+
+      // Random pair messages
+      const pairMessages = [
+        `💕 Perfect Match Found! 💕\n\nThe stars have aligned and destiny has spoken! This pairing is written in the cosmos itself. Your hearts beat in perfect harmony, creating a symphony of love that resonates throughout the universe. Together, you two are unstoppable!`,
+        
+        `🎉 Love is in the air! 🎉\n\nCupid himself couldn't have made a better match! The chemistry between you two is undeniable, sparking fireworks that light up the entire sky. Your souls were meant to find each other in this vast world. What a magical connection!`,
+        
+        `💖 What a beautiful couple! 💖\n\nThis is the kind of love story that novels are written about! Your personalities complement each other like pieces of a perfect puzzle. The universe conspired to bring you together, and now nothing can break this divine bond!`,
+        
+        `🌟 Match made in heaven! 🌟\n\nEven the angels are celebrating this incredible pairing! Your compatibility is off the charts, and your connection transcends the physical realm. This is pure, cosmic love at its finest. Fate has smiled upon you both!`,
+        
+        `💝 Cupid has struck! 💝\n\nLove's arrow has found its perfect targets! The romantic energy between you two could power an entire city. Your hearts are now forever intertwined in an eternal dance of passion and affection. This is true love's magic!`,
+        
+        `🎊 Congratulations lovebirds! 🎊\n\nWhat we have here is a match that happens once in a lifetime! Your souls recognize each other from past lives, creating an instant and unbreakable connection. The entire universe is rooting for your love story!`,
+        
+        `💞 True love detected! 💞\n\nThe algorithms of love have calculated the perfect equation, and you two are the answer! Your compatibility creates a force field of happiness that spreads joy to everyone around you. This is destiny at its most beautiful!`,
+        
+        `🥰 Aww, so cute together! 🥰\n\nThis pairing is so adorable that even the toughest hearts are melting! Your love story will inspire generations to come. The way you complement each other is nothing short of miraculous. True soulmates have been found!`,
+        
+        `✨ Magical Love Connection! ✨\n\nThe universe has woven your destinies together with threads of stardust and moonbeams! This isn't just compatibility - it's a cosmic phenomenon. Your love will create ripples of happiness throughout space and time!`,
+        
+        `🌹 Romance Level: Maximum! 🌹\n\nThis pairing has set the romance meter to overload! Your love story will be told in legends, sung in ballads, and remembered for all eternity. The gods themselves have blessed this divine union with their favor!`
+      ];
+
+      const randomMessage = pairMessages[Math.floor(Math.random() * pairMessages.length)];
+
+      const finalMessage = `${randomMessage}\n\n💑 ${senderName} + ${randomMatch.name} 💑\n\nCompatibility: ${matchPercentage}%`;
+
+      // Ensure participants are mentioned correctly
+      const mentions = [
+        { tag: `${senderName}`, id: senderID },
+        { tag: `${randomMatch.name}`, id: randomMatch.userID }
+      ];
+
+      // Send the pair image
+      api.sendMessage({
+        body: finalMessage,
+        attachment: fs.createReadStream(outputPath),
+        mentions: mentions
+      }, threadID, () => {
+        // Clean up temp files
+        cleanupFiles([senderProfilePath, matchProfilePath, outputPath]);
+      }, messageID);
+
+    } catch (error) {
+      console.error('[pair] Error:', error);
+      api.sendMessage("❌ Error occurred while creating pair. Please try again later.", threadID, messageID);
+    }
   }
 };
 
-module.exports.run = async function ({ Users, Threads, api, event }) {
-  const fs = require("fs-extra");
-  const axios = require("axios");
-  const { createCanvas, loadImage } = require("canvas");
+// Helper function to download images with retry & timeout
+async function downloadImage(url, filepath, options = {}) {
+  const {
+    timeout = 15000,
+    retries = 2
+  } = options;
 
-  const path = __dirname + `/cache`;
-  const id1 = event.senderID;
-  const name1 = await Users.getNameUser(id1);
-  const threadInfo = await api.getThreadInfo(event.threadID);
-  const all = threadInfo.userInfo;
-  const botID = api.getCurrentUserID();
-  const gender1 = all.find(u => u.id == id1)?.gender || "UNKNOWN";
+  let attempt = 0;
+  let lastError = null;
 
-  let candidates = [];
-  for (const u of all) {
-    if (u.id !== id1 && u.id !== botID) {
-      if (gender1 === "MALE" && u.gender === "FEMALE") candidates.push(u.id);
-      else if (gender1 === "FEMALE" && u.gender === "MALE") candidates.push(u.id);
-      else if (gender1 === "UNKNOWN") candidates.push(u.id);
+  while (attempt <= retries) {
+    try {
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout,
+        maxRedirects: 5,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
+      });
+
+      await fsPromises.writeFile(filepath, response.data);
+      return true;
+    } catch (error) {
+      lastError = error;
+      attempt += 1;
+      console.warn(`[pair] Image download attempt ${attempt} failed (${error.code || error.message}).`);
+
+      if (attempt <= retries) {
+        await delay(500 * attempt);
+      }
     }
   }
 
-  if (candidates.length === 0) return api.sendMessage("❌ Koi jodi nahi mili bhai 😔", event.threadID);
+  console.error('[pair] Giving up on downloading image:', lastError?.message || lastError);
+  return false;
+}
 
-  const id2 = candidates[Math.floor(Math.random() * candidates.length)];
-  const name2 = await Users.getNameUser(id2);
+async function ensureProfileImage(url, filepath, displayName = 'User') {
+  const downloaded = await downloadImage(url, filepath);
+  if (downloaded) {
+    return;
+  }
 
-  // 💫 Stylish elements
-  const backgrounds = [
-    "https://i.postimg.cc/wjJ29HRB/background1.png",
-    "https://i.postimg.cc/zf4Pnshv/background2.png",
-    "https://i.postimg.cc/5tXRQ46D/background3.png"
+  console.warn('[pair] Falling back to placeholder avatar for', displayName);
+  createPlaceholderAvatar(filepath, displayName);
+}
+
+// Helper function to draw circular profile with custom border designs
+function drawCircularProfile(ctx, profileImage, x, y, radius, design) {
+  // Draw profile image in circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(profileImage, x - radius, y - radius, radius * 2, radius * 2);
+  ctx.restore();
+
+  // Draw border based on design style
+  switch (design.style) {
+    case 'solid':
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+
+    case 'double':
+      // Inner border
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, radius - design.width, 0, Math.PI * 2);
+      ctx.stroke();
+      // Outer border
+      ctx.beginPath();
+      ctx.arc(x, y, radius + design.width / 2, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+
+    case 'dashed':
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.setLineDash([10, 5]);
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      break;
+
+    case 'gradient':
+      const gradient = ctx.createRadialGradient(x, y, radius - design.width, x, y, radius + design.width);
+      gradient.addColorStop(0, design.color);
+      gradient.addColorStop(0.5, '#FFD700');
+      gradient.addColorStop(1, design.color);
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+
+    case 'rainbow':
+      const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
+      for (let i = 0; i < colors.length; i++) {
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = design.width / colors.length;
+        ctx.beginPath();
+        ctx.arc(x, y, radius + (i * design.width / colors.length), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+
+    case 'glow':
+      ctx.shadowColor = design.color;
+      ctx.shadowBlur = design.width * 2;
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      break;
+
+    case 'hearts':
+      ctx.font = `${design.width * 3}px Arial`;
+      ctx.fillStyle = design.color;
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+        const heartX = x + Math.cos(angle) * (radius + design.width);
+        const heartY = y + Math.sin(angle) * (radius + design.width);
+        ctx.fillText('💖', heartX - design.width, heartY + design.width / 2);
+      }
+      break;
+
+    case 'stars':
+      ctx.font = `${design.width * 2}px Arial`;
+      ctx.fillStyle = design.color;
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+        const starX = x + Math.cos(angle) * (radius + design.width);
+        const starY = y + Math.sin(angle) * (radius + design.width);
+        ctx.fillText('⭐', starX - design.width / 2, starY + design.width / 4);
+      }
+      break;
+
+    case 'neon':
+      // Neon effect with multiple glows
+      ctx.shadowColor = design.color;
+      ctx.shadowBlur = design.width * 3;
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add inner neon glow
+      ctx.shadowBlur = design.width;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = design.width / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, radius - design.width / 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      break;
+
+    case 'sparkle':
+      // Main border
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add sparkle effects
+      ctx.font = `${design.width * 2}px Arial`;
+      ctx.fillStyle = '#FFD700';
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+        const sparkleX = x + Math.cos(angle) * (radius + design.width * 2);
+        const sparkleY = y + Math.sin(angle) * (radius + design.width * 2);
+        ctx.fillText('✨', sparkleX - design.width, sparkleY + design.width / 2);
+      }
+      break;
+
+    default:
+      // Default solid border
+      ctx.strokeStyle = design.color;
+      ctx.lineWidth = design.width;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+  }
+}
+
+function createPlaceholderAvatar(filepath, displayName = 'User') {
+  const size = 640;
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+  const palettes = [
+    ['#FF9A8B', '#FF6A88'],
+    ['#A18CD1', '#FBC2EB'],
+    ['#43C6AC', '#191654'],
+    ['#667db6', '#0082c8'],
+    ['#f953c6', '#b91d73']
   ];
-  const shayaris = [
-    "💫 Mohabbat inki taqdeer ban chuki hai 💖",
-    "💘 In dono ki jodi pe rab bhi fakr kare 🙏",
-    "🌟 Ishq bhi sharma jaaye inke aage 😍",
-    "👑 Dil se dil ka milna yeh toh asmaanon ka rishta hai 🕊️",
-    "🔥 Ruh ka milan hai yeh, sirf jism ka nahi 💑",
-    "🌸 Inka rishta toh janmon ka hai 💍",
-    "💌 Pyaar bhi keh raha hai: 'Yeh dono ek doosre ke liye bane hain' 🌈",
-    "💎 Jahan tak mohabbat ka asar hai, wahan tak inka naam chalega 💥",
-    "🫀 Dil, dua aur kismat — sab milein hain in dono ke naam 💘"
-  ];
-  const ratings = ["💘 100%", "💫 99.9%", "🔥 98%", "❤️ 101%", "🌟 97.5%", "👑 96.69%", "🕊️ 100.0%"];
 
-  const header = "✨ Ye jodi likhi hai bhagwan ne ✨\n💢 Kalm tha... Rudra 👑";
-  const bg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-  const shayari = shayaris[Math.floor(Math.random() * shayaris.length)];
-  const rating = ratings[Math.floor(Math.random() * ratings.length)];
+  const colors = palettes[Math.floor(Math.random() * palettes.length)];
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, colors[0]);
+  gradient.addColorStop(1, colors[1]);
 
-  const pathImg = `${path}/pairbg.png`;
-  const pathAvt1 = `${path}/avt1.png`;
-  const pathAvt2 = `${path}/avt2.png`;
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
 
-  // 📥 Get profile pics and background
-  const avt1 = (await axios.get(`https://graph.facebook.com/${id1}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathAvt1, Buffer.from(avt1, "utf-8"));
+  const initial = (displayName?.trim()?.charAt(0) || '?').toUpperCase();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 280px "Segoe UI", "Poppins", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(initial, size / 2, size / 2);
 
-  const avt2 = (await axios.get(`https://graph.facebook.com/${id2}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathAvt2, Buffer.from(avt2, "utf-8"));
+  fs.writeFileSync(filepath, canvas.toBuffer('image/png'));
+}
 
-  const bgImage = (await axios.get(bg, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathImg, Buffer.from(bgImage, "utf-8"));
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  // 🖼️ Create final image
-  const baseImg = await loadImage(pathImg);
-  const avatar1 = await loadImage(pathAvt1);
-  const avatar2 = await loadImage(pathAvt2);
-  const canvas = createCanvas(baseImg.width, baseImg.height);
-  const ctx = canvas.getContext("2d");
-
-  ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-  ctx.drawImage(avatar1, 100, 150, 300, 300); // position 1
-  ctx.drawImage(avatar2, 900, 150, 300, 300); // position 2
-
-  const finalBuffer = canvas.toBuffer();
-  fs.writeFileSync(pathImg, finalBuffer);
-
-  // 🧹 Cleanup
-  fs.removeSync(pathAvt1);
-  fs.removeSync(pathAvt2);
-
-  // 📨 Send message
-  return api.sendMessage({
-    body: `${header}\n━━━━━━━━━━━━━━\n💑 ${name1} ❤️ ${name2}\n${shayari}\n❤️ Compatibility: ${rating}\n━━━━━━━━━━━━━━\n🔱 Powered by Rudra`,
-    mentions: [{ tag: name2, id: id2 }],
-    attachment: fs.createReadStream(pathImg)
-  }, event.threadID, () => fs.unlinkSync(pathImg), event.messageID);
-};
+// Helper function to clean up temp files
+function cleanupFiles(files) {
+  setTimeout(() => {
+    files.forEach(file => {
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+    });
+  }, 5000); // Clean up after 5 seconds
+}

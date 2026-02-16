@@ -1,6 +1,6 @@
 module.exports.config = {
     name: "pair1",
-    version: "2.0.0",
+    version: "2.0.1",
     hasPermssion: 0,
     credits: "Priyansh Rajput (Remix by Copilot)",
     description: "Unique love pairing command",
@@ -20,7 +20,7 @@ module.exports.onLoad = async () => {
     const dirMaterial = __dirname + `/cache/canvas/`;
     const path = resolve(__dirname, 'cache/canvas', 'pairing.jpg');
     if (!existsSync(dirMaterial + "canvas")) mkdirSync(dirMaterial, { recursive: true });
-    if (!existsSync(path)) await downloadFile("https://i.pinimg.com/736x/15/fa/9d/15fa9d71cdd07486bb6f728dae2fb264.jpg", path);
+    if (!existsSync(path)) await downloadFile("https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg", path);
 };
 
 async function makeImage({ one, two }) {
@@ -72,7 +72,7 @@ module.exports.run = async function ({ api, event }) {
     const { threadID, messageID, senderID } = event;
 
     // Random compatibility %
-    const tl = ['21%', '67%', '19%', '37%', '17%', '96%', '52%', '62%', '76%', '83%', '100%', '99%', "0%", "48%"];
+    const tl = ['21%', '67%', '19%', '37%', '17%', '96%', '52%', '62%', '76%', '83%', '100%', '99%', "48%"];
     const tle = tl[Math.floor(Math.random() * tl.length)];
 
     let dataa = await api.getUserInfo(senderID);
@@ -92,9 +92,24 @@ module.exports.run = async function ({ api, event }) {
 
     let one = senderID, two = id;
 
+    // Clean romantic shayaris only
+    const shayaris = [
+        "💫 Mohabbat inki taqdeer ban chuki hai 💖",
+        "💘 In dono ki jodi pe rab bhi fakr kare 🙏",
+        "🌟 Ishq bhi sharma jaaye inke aage 😍",
+        "👑 Dil se dil ka milna yeh toh asmaanon ka rishta hai 🕊️",
+        "🔥 Ruh ka milan hai yeh, sirf jism ka nahi 💑",
+        "🌸 Inka rishta toh janmon ka hai 💍",
+        "✨ Dil se dil ka rishta hai, jo kabhi nahi toote ✨",
+        "❤️ Rab ne likhi hai inki prem kahani ❤️",
+        "🌹 Inka pyaar khud ek misaal hai 🌹",
+        "💞 Ye jodi hamesha khush rahe 💞"
+    ];
+    const shayari = shayaris[Math.floor(Math.random() * shayaris.length)];
+
     return makeImage({ one, two }).then(path =>
         api.sendMessage({
-            body: `✨ Unique Pairing ✨\n━━━━━━━━━━━━━━\n💑 ${namee} ❤️ ${name}\nCompatibility odds: ${tle}\n🌸 Destiny has spoken 🌸`,
+            body: `✨ Unique Pairing ✨\n━━━━━━━━━━━━━━\n💑 ${namee} ❤️ ${name}\n${shayari}\nCompatibility odds: ${tle}\n🌸 Destiny has spoken 🌸`,
             mentions: arraytag,
             attachment: fs.createReadStream(path)
         }, threadID, () => fs.unlinkSync(path), messageID)

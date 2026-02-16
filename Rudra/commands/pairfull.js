@@ -1,6 +1,6 @@
 module.exports.config = {
   name: "pairfull",
-  version: "2.3.0",
+  version: "3.1.0",
   hasPermssion: 0,
   credits: "Rudra Remix by Copilot",
   description: "Pair command with glowing text and 2 profile pics",
@@ -18,10 +18,9 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   const axios = require("axios");
   const jimp = require("jimp");
 
-  // Backgrounds (Postimage links)
+  // Backgrounds (Direct Links from Postimage)
   const backgrounds = [
-    "https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg",
-    // aur links add kar sakte ho
+    "https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg"
   ];
   const bgURL = backgrounds[Math.floor(Math.random() * backgrounds.length)];
   let pairing_img = await jimp.read(bgURL);
@@ -53,6 +52,10 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   pairing_img.composite(imgOne, 150, 200);
   pairing_img.composite(imgTwo, 450, 200);
 
+  // Glow effect for names
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_GREEN), 200, 500, `💑 ${name1} ❤️ ${name2}`);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 202, 502, `💑 ${name1} ❤️ ${name2}`);
+
   // Glow effect for shayari
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_RED), 180, 550, shayari);
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 182, 552, shayari);
@@ -60,10 +63,6 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   // Glow effect for compatibility
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_BLUE), 180, 600, `✨ Compatibility: ${rating} ✨`);
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 182, 602, `✨ Compatibility: ${rating} ✨`);
-
-  // Glow effect for names
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_GREEN), 200, 500, `💑 ${name1} ❤️ ${name2}`);
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 202, 502, `💑 ${name1} ❤️ ${name2}`);
 
   const raw = await pairing_img.getBufferAsync("image/png");
   fs.writeFileSync(pathImg, raw);

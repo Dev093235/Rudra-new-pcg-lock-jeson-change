@@ -1,9 +1,9 @@
 module.exports.config = {
   name: "pairfull",
-  version: "1.4.0",
+  version: "2.3.0",
   hasPermssion: 0,
   credits: "Rudra Remix by Copilot",
-  description: "Pair command with magical collage style",
+  description: "Pair command with glowing text and 2 profile pics",
   commandCategory: "love",
   cooldowns: 5,
   dependencies: {
@@ -18,8 +18,12 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   const axios = require("axios");
   const jimp = require("jimp");
 
-  // Background from Postimage
-  const bgURL = "https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg";
+  // Backgrounds (Postimage links)
+  const backgrounds = [
+    "https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg",
+    // aur links add kar sakte ho
+  ];
+  const bgURL = backgrounds[Math.floor(Math.random() * backgrounds.length)];
   let pairing_img = await jimp.read(bgURL);
 
   const avatarOne = `avt_${one}.png`;
@@ -27,27 +31,39 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   const pathImg = `pairing_${one}_${two}.png`;
 
   // Download profile pics
-  const getAvatarOne = (await axios.get(`https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
+  const getAvatarOne = (await axios.get(
+    `https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`,
+    { responseType: "arraybuffer" }
+  )).data;
   fs.writeFileSync(avatarOne, Buffer.from(getAvatarOne));
 
-  const getAvatarTwo = (await axios.get(`https://graph.facebook.com/${two}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
+  const getAvatarTwo = (await axios.get(
+    `https://graph.facebook.com/${two}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`,
+    { responseType: "arraybuffer" }
+  )).data;
   fs.writeFileSync(avatarTwo, Buffer.from(getAvatarTwo));
 
   let imgOne = await jimp.read(avatarOne);
   let imgTwo = await jimp.read(avatarTwo);
 
-  // Resize
   imgOne.resize(250, 250);
   imgTwo.resize(250, 250);
 
-  // Composite vertically (magic style)
-  pairing_img.composite(imgOne, 300, 80);   // top
-  pairing_img.composite(imgTwo, 300, 380);  // bottom
+  // Place side by side on background
+  pairing_img.composite(imgOne, 150, 200);
+  pairing_img.composite(imgTwo, 450, 200);
 
-  // Overlay text
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 200, 20, `💑 ${name1} ❤️ ${name2}`);
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 180, 650, shayari || "Mohabbat inki taqdeer hai 💖");
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 180, 700, `✨ Compatibility: ${rating || "100%"} ✨`);
+  // Glow effect for shayari
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_RED), 180, 550, shayari);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 182, 552, shayari);
+
+  // Glow effect for compatibility
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_BLUE), 180, 600, `✨ Compatibility: ${rating} ✨`);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 182, 602, `✨ Compatibility: ${rating} ✨`);
+
+  // Glow effect for names
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_GREEN), 200, 500, `💑 ${name1} ❤️ ${name2}`);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 202, 502, `💑 ${name1} ❤️ ${name2}`);
 
   const raw = await pairing_img.getBufferAsync("image/png");
   fs.writeFileSync(pathImg, raw);

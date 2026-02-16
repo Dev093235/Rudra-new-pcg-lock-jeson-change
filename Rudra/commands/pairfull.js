@@ -1,6 +1,6 @@
 module.exports.config = {
   name: "pairfull",
-  version: "1.0.0",
+  version: "1.1.0",
   hasPermssion: 0,
   credits: "Rudra Remix by Copilot",
   description: "Pair command with full profile pics",
@@ -44,10 +44,10 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   // Composite side by side
   pairing_img.composite(imgOne, 150, 100).composite(imgTwo, 450, 100);
 
-  // Overlay text
+  // Overlay text with fallback
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 200, 20, `💑 ${name1} ❤️ ${name2}`);
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 370, shayari);
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 400, `Compatibility: ${rating}`);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 370, shayari || "Mohabbat inki taqdeer hai 💖");
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 400, `Compatibility: ${rating || "100%"}`);
 
   const raw = await pairing_img.getBufferAsync("image/png");
   fs.writeFileSync(pathImg, raw);
@@ -80,8 +80,8 @@ module.exports.run = async function ({ api, event, Users }) {
   ];
   const ratings = ["💘 100%", "💫 99.9%", "🔥 98%", "❤️ 101%", "🌟 97.5%", "👑 96.69%"];
 
-  const shayari = shayaris[Math.floor(Math.random() * shayaris.length)];
-  const rating = ratings[Math.floor(Math.random() * ratings.length)];
+  const shayari = shayaris[Math.floor(Math.random() * shayaris.length)] || "Mohabbat inki taqdeer hai 💖";
+  const rating = ratings[Math.floor(Math.random() * ratings.length)] || "100%";
 
   return makeImage({ one: id1, two: id2, name1, name2, shayari, rating }).then(path =>
     api.sendMessage({

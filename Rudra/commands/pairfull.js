@@ -1,9 +1,9 @@
 module.exports.config = {
   name: "pairfull",
-  version: "1.1.0",
+  version: "1.4.0",
   hasPermssion: 0,
   credits: "Rudra Remix by Copilot",
-  description: "Pair command with full profile pics",
+  description: "Pair command with magical collage style",
   commandCategory: "love",
   cooldowns: 5,
   dependencies: {
@@ -17,17 +17,16 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   const fs = require("fs-extra");
   const axios = require("axios");
   const jimp = require("jimp");
-  const path = require("path");
-  const __root = path.resolve(__dirname, "cache", "canvas");
 
-  const bgPath = __root + "/pairing.jpg";
-  let pairing_img = await jimp.read(bgPath);
+  // Background from Postimage
+  const bgURL = "https://i.postimg.cc/65x1Q2Wx/image-1771265751438.jpg";
+  let pairing_img = await jimp.read(bgURL);
 
-  const avatarOne = __root + `/avt_${one}.png`;
-  const avatarTwo = __root + `/avt_${two}.png`;
-  const pathImg = __root + `/pairing_${one}_${two}.png`;
+  const avatarOne = `avt_${one}.png`;
+  const avatarTwo = `avt_${two}.png`;
+  const pathImg = `pairing_${one}_${two}.png`;
 
-  // Download full profile pics
+  // Download profile pics
   const getAvatarOne = (await axios.get(`https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
   fs.writeFileSync(avatarOne, Buffer.from(getAvatarOne));
 
@@ -37,17 +36,18 @@ async function makeImage({ one, two, name1, name2, shayari, rating }) {
   let imgOne = await jimp.read(avatarOne);
   let imgTwo = await jimp.read(avatarTwo);
 
-  // Resize bigger for full profile
+  // Resize
   imgOne.resize(250, 250);
   imgTwo.resize(250, 250);
 
-  // Composite side by side
-  pairing_img.composite(imgOne, 150, 100).composite(imgTwo, 450, 100);
+  // Composite vertically (magic style)
+  pairing_img.composite(imgOne, 300, 80);   // top
+  pairing_img.composite(imgTwo, 300, 380);  // bottom
 
-  // Overlay text with fallback
+  // Overlay text
   pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 200, 20, `💑 ${name1} ❤️ ${name2}`);
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 370, shayari || "Mohabbat inki taqdeer hai 💖");
-  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 200, 400, `Compatibility: ${rating || "100%"}`);
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_16_WHITE), 180, 650, shayari || "Mohabbat inki taqdeer hai 💖");
+  pairing_img.print(await jimp.loadFont(jimp.FONT_SANS_32_WHITE), 180, 700, `✨ Compatibility: ${rating || "100%"} ✨`);
 
   const raw = await pairing_img.getBufferAsync("image/png");
   fs.writeFileSync(pathImg, raw);

@@ -1,6 +1,6 @@
 module.exports.config = {
   name: "pair",
-  version: "1.1.0",
+  version: "1.3.0",
   hasPermssion: 0,
   credits: "Rudra X Priyansh (fixes by Copilot)",
   description: "Ye jodi likhi hai bhagwan ne - Kalm tha Rudra 👑",
@@ -31,13 +31,21 @@ module.exports.run = async function ({ Users, Threads, api, event }) {
   let candidates = [];
   for (const u of all) {
     if (u.id !== id1 && u.id !== botID) {
-      if (gender1 === "male" && u.gender === "female") candidates.push(u.id);
-      else if (gender1 === "female" && u.gender === "male") candidates.push(u.id);
-      else if (gender1 === "unknown") candidates.push(u.id);
+      // Agar gender info missing hai toh sabko allow karo
+      if (!u.gender || gender1 === "unknown") {
+        candidates.push(u.id);
+      } else if (gender1 === "male" && u.gender === "female") {
+        candidates.push(u.id);
+      } else if (gender1 === "female" && u.gender === "male") {
+        candidates.push(u.id);
+      }
     }
   }
 
-  if (candidates.length === 0) return api.sendMessage("❌ Koi jodi nahi mili bhai 😔", event.threadID);
+  // ✅ Agar still empty hai toh fallback: sabhi members except sender & bot
+  if (candidates.length === 0) {
+    candidates = all.filter(u => u.id !== id1 && u.id !== botID).map(u => u.id);
+  }
 
   const id2 = candidates[Math.floor(Math.random() * candidates.length)];
   const name2 = await Users.getNameUser(id2);

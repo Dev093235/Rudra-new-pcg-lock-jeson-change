@@ -1,8 +1,8 @@
 module.exports.config = {
   name: "pair",
-  version: "1.0.0",
+  version: "1.1.0",
   hasPermssion: 0,
-  credits: "Rudra X Priyansh",
+  credits: "Rudra X Priyansh (fixes by Copilot)",
   description: "Ye jodi likhi hai bhagwan ne - Kalm tha Rudra 👑",
   commandCategory: "love",
   cooldowns: 2,
@@ -24,14 +24,16 @@ module.exports.run = async function ({ Users, Threads, api, event }) {
   const threadInfo = await api.getThreadInfo(event.threadID);
   const all = threadInfo.userInfo;
   const botID = api.getCurrentUserID();
-  const gender1 = all.find(u => u.id == id1)?.gender || "UNKNOWN";
+
+  // ✅ Gender handling fix
+  const gender1 = (all.find(u => u.id == id1)?.gender || "unknown").toLowerCase();
 
   let candidates = [];
   for (const u of all) {
     if (u.id !== id1 && u.id !== botID) {
-      if (gender1 === "MALE" && u.gender === "FEMALE") candidates.push(u.id);
-      else if (gender1 === "FEMALE" && u.gender === "MALE") candidates.push(u.id);
-      else if (gender1 === "UNKNOWN") candidates.push(u.id);
+      if (gender1 === "male" && u.gender === "female") candidates.push(u.id);
+      else if (gender1 === "female" && u.gender === "male") candidates.push(u.id);
+      else if (gender1 === "unknown") candidates.push(u.id);
     }
   }
 
@@ -68,15 +70,15 @@ module.exports.run = async function ({ Users, Threads, api, event }) {
   const pathAvt1 = `${path}/avt1.png`;
   const pathAvt2 = `${path}/avt2.png`;
 
-  // 📥 Get profile pics and background
+  // 📥 Get profile pics and background (✅ Buffer fix)
   const avt1 = (await axios.get(`https://graph.facebook.com/${id1}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathAvt1, Buffer.from(avt1, "utf-8"));
+  fs.writeFileSync(pathAvt1, Buffer.from(avt1));
 
   const avt2 = (await axios.get(`https://graph.facebook.com/${id2}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathAvt2, Buffer.from(avt2, "utf-8"));
+  fs.writeFileSync(pathAvt2, Buffer.from(avt2));
 
   const bgImage = (await axios.get(bg, { responseType: "arraybuffer" })).data;
-  fs.writeFileSync(pathImg, Buffer.from(bgImage, "utf-8"));
+  fs.writeFileSync(pathImg, Buffer.from(bgImage));
 
   // 🖼️ Create final image
   const baseImg = await loadImage(pathImg);
@@ -86,8 +88,23 @@ module.exports.run = async function ({ Users, Threads, api, event }) {
   const ctx = canvas.getContext("2d");
 
   ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-  ctx.drawImage(avatar1, 100, 150, 300, 300); // position 1
-  ctx.drawImage(avatar2, 900, 150, 300, 300); // position 2
+
+  // ✅ Dynamic positioning
+  const avatarSize = 300;
+  ctx.drawImage(avatar1, canvas.width / 4 - avatarSize / 2, canvas.height / 2 - avatarSize / 2, avatarSize, avatarSize);
+  ctx.drawImage(avatar2, (canvas.width * 3 / 4) - avatarSize / 2, canvas.height / 2 - avatarSize / 2, avatarSize, avatarSize);
+
+  // ✨ Overlay text (shayari + rating)
+  ctx.font = "bold 40px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.fillText(`${name1} ❤️ ${name2}`, canvas.width / 2, 80);
+
+  ctx.font = "30px Arial";
+  ctx.fillText(shayari, canvas.width / 2, canvas.height - 100);
+
+  ctx.font = "bold 35px Arial";
+  ctx.fillText(`Compatibility: ${rating}`, canvas.width / 2, canvas.height - 50);
 
   const finalBuffer = canvas.toBuffer();
   fs.writeFileSync(pathImg, finalBuffer);

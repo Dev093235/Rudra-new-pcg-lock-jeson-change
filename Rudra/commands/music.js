@@ -21,7 +21,7 @@ function deleteAfterTimeout(filePath, timeout = 5000) {
 module.exports = {
   config: {
     name: "music",
-    version: "2.0.2",
+    version: "2.0.3",
     hasPermssion: 0,
     credits: "Mirrykal",
     description: "Download YouTube song or video",
@@ -46,17 +46,16 @@ module.exports = {
     );
 
     try {
-      // 🔎 **YouTube Search**
+      // 🔎 YouTube Search
       const searchResults = await ytSearch(songName);
       if (!searchResults || !searchResults.videos.length) {
         throw new Error("Kuch nahi mila! Gaane ka naam sahi likho. 😑");
       }
 
-      // 🎵 **Top Result ka URL**
       const topResult = searchResults.videos[0];
       const videoUrl = `https://www.youtube.com/watch?v=${topResult.videoId}`;
 
-      // 🖼 **Download Thumbnail**
+      // 🖼 Thumbnail Download
       const thumbnailUrl = topResult.thumbnail;
       const safeTitle = topResult.title.replace(/[^a-zA-Z0-9]/g, "_");
       const downloadDir = path.join(__dirname, "cache");
@@ -78,7 +77,6 @@ module.exports = {
         });
       });
 
-      // 📩 **Send Thumbnail First**
       await api.sendMessage(
         {
           attachment: fs.createReadStream(thumbnailPath),
@@ -87,10 +85,9 @@ module.exports = {
         event.threadID
       );
 
-      // 🗑 **Delete Thumbnail After 5 Seconds**
       deleteAfterTimeout(thumbnailPath, 5000);
 
-      // 🖥 **API Call to Your Render Server**
+      // 🖥 API Call to Your Render Server
       const apiUrl = `https://rudra-music-2-0.onrender.com/download?url=${encodeURIComponent(videoUrl)}&type=${mediaType}`;
       const downloadResponse = await axios.get(apiUrl);
 
@@ -102,7 +99,6 @@ module.exports = {
       const filename = `${safeTitle}.${mediaType === "video" ? "mp4" : "mp3"}`;
       const downloadPath = path.join(downloadDir, filename);
 
-      // ⬇️ **Download Media File**
       const file = fs.createWriteStream(downloadPath);
       await new Promise((resolve, reject) => {
         https.get(downloadUrl, (response) => {
@@ -122,7 +118,6 @@ module.exports = {
 
       api.setMessageReaction("✅", event.messageID, () => {}, true);
 
-      // 🎧 **Send the MP3/MP4 File**
       await api.sendMessage(
         {
           attachment: fs.createReadStream(downloadPath),
@@ -132,7 +127,6 @@ module.exports = {
         event.messageID
       );
 
-      // 🗑 **Auto Delete File After 5 Seconds**
       deleteAfterTimeout(downloadPath, 5000);
     } catch (error) {
       console.error(`❌ Error: ${error.message}`);

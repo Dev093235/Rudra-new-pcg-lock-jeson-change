@@ -4,27 +4,23 @@ const path = require("path");
 
 module.exports.config = {
     name: "radha",
-    version: "3.0.0",
+    version: "3.0.1",
     hasPermssion: 0,
     credits: "Rudra",
-    description: "Chat with Radha AI",
+    description: "Chat with Radha AI (prefix-free)",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 5,
 };
 
 // --- CONFIGURATION ---
-// 👇👇👇 APNI API KEY NICHE DAALO 👇👇👇
-
 const GROQ_API_KEY = "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";
 
-// 👆👆👆 --------------------------- 👆👆👆
-
-const HISTORY_FILE = path.join(__dirname, "temporary", "juhi_mirai_history.json");
+const HISTORY_FILE = path.join(__dirname, "temporary", "radha_mirai_history.json");
 const HISTORY_LIMIT = 10;
 const MODEL_NAME = "llama-3.3-70b-versatile"; 
 
-// --- CHARACTER PROMPT (Sweet + Roast) ---
+// --- CHARACTER PROMPT ---
 const SYSTEM_PROMPT = `Tumhara naam Radha hai (log tumhe Riya bhi bulate hain).
 Tum ek naughty, sweet aur flirty girlfriend ki tarah baat karti ho.
 Tum Hinglish language use karti ho.
@@ -61,8 +57,7 @@ function saveUserHistory(userID, newHistory) {
 
 // --- API FUNCTION ---
 async function getGroqReply(userID, prompt) {
-  // Check if user forgot to add key
-  if (GROQ_API_KEY.includes("𝐀𝐃𝐃 𝐘𝐎𝐔𝐑")) {
+  if (!GROQ_API_KEY || GROQ_API_KEY.includes("ADD YOUR")) {
     throw new Error("❌ API Key Missing! File mein jakar API Key add karo.");
   }
 
@@ -91,8 +86,10 @@ async function getGroqReply(userID, prompt) {
 
 // --- MAIN RUN COMMAND ---
 module.exports.run = async function({ api, event, args }) {
-    const { threadID, messageID, senderID } = event;
-    const prompt = args.join(" ").trim();
+    const { threadID, messageID, senderID, body } = event;
+
+    // Allow both prefix and free-text
+    const prompt = args.join(" ").trim() || body.trim();
 
     if (!prompt) return api.sendMessage("Bolo baby? Kuch kahoge ya bas dekhoge? 😘", threadID, messageID);
 
@@ -104,7 +101,6 @@ module.exports.run = async function({ api, event, args }) {
         return api.sendMessage(reply, threadID, (err, info) => {
             if (err) return;
             
-            // Register Reply Handler
             global.client.handleReply.push({
                 name: this.config.name,
                 messageID: info.messageID,
@@ -121,7 +117,6 @@ module.exports.run = async function({ api, event, args }) {
 module.exports.handleReply = async function({ api, event, handleReply }) {
     const { threadID, messageID, senderID, body } = event;
     
-    // Check if the replier is the same person who started the chat
     if (senderID !== handleReply.author) return;
 
     const prompt = body.trim();
@@ -135,7 +130,6 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
         return api.sendMessage(reply, threadID, (err, info) => {
             if (err) return;
 
-            // Loop: Register new message for reply again
             global.client.handleReply.push({
                 name: this.config.name,
                 messageID: info.messageID,

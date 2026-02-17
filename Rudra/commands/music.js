@@ -90,8 +90,8 @@ module.exports = {
       // 🗑 **Delete Thumbnail After 5 Seconds**
       deleteAfterTimeout(thumbnailPath, 5000);
 
-      // 🖥 **API Call to YouTube Downloader**
-      const apiUrl = `https://arun-music.onrender.com/download?url=${encodeURIComponent(videoUrl)}&type=${mediaType}`;
+      // 🖥 **API Call to Your Render Server**
+      const apiUrl = `https://rudra-music-2-0.onrender.com/download?url=${encodeURIComponent(videoUrl)}&type=${mediaType}`;
       const downloadResponse = await axios.get(apiUrl);
 
       if (!downloadResponse.data.file_url) {

@@ -61,7 +61,7 @@ module.exports.config = {
 };
 
 const chatHistories = {};
-const AI_API_URL = "https://rudra-here-brs2.onrender.com"; // <-- नया Render सर्वर URL
+const AI_API_URL = "https://rudra-hare-2-0.onrender.com"; // <-- नया Render सर्वर URL
 
 // User name cache to avoid fetching name repeatedly
 async function getUserName(api, userID) {

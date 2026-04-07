@@ -6,10 +6,10 @@ const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "FINAL-FIXED",
+    version: "FINAL-PRO-MAX",
     hasPermssion: 0,
-    credits: "Rudra Final Fix",
-    description: "Radha AI Hinglish + Hindi Voice Clean",
+    credits: "Rudra Ultra Fix",
+    description: "Radha AI Hinglish + Smooth Hindi Voice",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 3,
@@ -22,7 +22,7 @@ const BASE_DIR = path.join(__dirname, "temporary");
 const HISTORY_FILE = path.join(BASE_DIR, "history.json");
 const USER_FILE = path.join(BASE_DIR, "users.json");
 
-// --- SYSTEM PROMPT (UNCHANGED) ---
+// --- PROMPT (UNCHANGED) ---
 const SYSTEM_PROMPT = `Tum Radha ho — flirty, naughty, teasing GF style Hinglish 😏🔥
 Short reply dena.`;
 
@@ -67,6 +67,11 @@ function cleanText(text) {
     .trim();
 }
 
+// ---------- REMOVE EMOJI ----------
+function removeEmoji(text) {
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
+}
+
 // ---------- HINGLISH → HINDI ----------
 function toHindiSpeech(text) {
   return text
@@ -84,6 +89,18 @@ function toHindiSpeech(text) {
     .replace(/theek/g, "ठीक")
     .replace(/kyu/g, "क्यों")
     .replace(/kaise/g, "कैसे");
+}
+
+// ---------- SMOOTH VOICE ----------
+function makeVoiceNatural(text) {
+  return text
+    .replace(/\.\.\./g, ".")
+    .replace(/\?/g, " ? ")
+    .replace(/\!/g, " ! ")
+    .replace(/,/g, " , ")
+    .replace(/\./g, " . ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ---------- VOICE ----------
@@ -179,29 +196,20 @@ module.exports.run = async function({ api, event, args }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
-    const hindiText = toHindiSpeech(reply);
+
+    let hindiText = toHindiSpeech(reply);
+    hindiText = removeEmoji(hindiText);
+    hindiText = makeVoiceNatural(hindiText);
 
     await textToVoice(hindiText, file);
 
     return api.sendMessage({
       body: reply,
       attachment: fs.createReadStream(file)
-    }, threadID, (err, info) => {
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
-    }, messageID);
+    }, threadID, messageID);
   }
 
-  return api.sendMessage(reply, threadID, (err, info) => {
-    global.client.handleReply.push({
-      name: module.exports.config.name,
-      messageID: info.messageID,
-      author: senderID
-    });
-  }, messageID);
+  return api.sendMessage(reply, threadID, messageID);
 };
 
 // ---------- HANDLE ----------
@@ -217,13 +225,7 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
     else if (text.includes("ladki")) setUser(senderID, { gender: "female" });
     else return api.sendMessage("Seedha bol — ladka ya ladki 😒", threadID, messageID);
 
-    return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, (err, info) => {
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
-    }, messageID);
+    return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, messageID);
   }
 
   const user = getUser(senderID);
@@ -233,27 +235,18 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
-    const hindiText = toHindiSpeech(reply);
+
+    let hindiText = toHindiSpeech(reply);
+    hindiText = removeEmoji(hindiText);
+    hindiText = makeVoiceNatural(hindiText);
 
     await textToVoice(hindiText, file);
 
     return api.sendMessage({
       body: reply,
       attachment: fs.createReadStream(file)
-    }, threadID, (err, info) => {
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
-    }, messageID);
+    }, threadID, messageID);
   }
 
-  return api.sendMessage(reply, threadID, (err, info) => {
-    global.client.handleReply.push({
-      name: module.exports.config.name,
-      messageID: info.messageID,
-      author: senderID
-    });
-  }, messageID);
+  return api.sendMessage(reply, threadID, messageID);
 };

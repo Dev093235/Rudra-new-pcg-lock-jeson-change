@@ -6,10 +6,10 @@ const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "FINAL-PRO-MAX",
+    version: "ULTRA-FINAL",
     hasPermssion: 0,
-    credits: "Rudra Ultra Fix",
-    description: "Radha AI Hinglish + Smooth Hindi Voice",
+    credits: "Rudra Ultra Final",
+    description: "Radha AI Full Perfect System",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 3,
@@ -22,9 +22,11 @@ const BASE_DIR = path.join(__dirname, "temporary");
 const HISTORY_FILE = path.join(BASE_DIR, "history.json");
 const USER_FILE = path.join(BASE_DIR, "users.json");
 
-// --- PROMPT (UNCHANGED) ---
 const SYSTEM_PROMPT = `Tum Radha ho — flirty, naughty, teasing GF style Hinglish 😏🔥
 Short reply dena.`;
+
+// 🔥 anti double
+const activeReplies = new Set();
 
 // ---------- SETUP ----------
 function ensureFiles() {
@@ -72,7 +74,7 @@ function removeEmoji(text) {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
 }
 
-// ---------- HINGLISH → HINDI ----------
+// ---------- HINDI ----------
 function toHindiSpeech(text) {
   return text
     .replace(/main/g, "मैं")
@@ -84,14 +86,10 @@ function toHindiSpeech(text) {
     .replace(/rahi/g, "रही")
     .replace(/ho/g, "हो")
     .replace(/hu/g, "हूँ")
-    .replace(/hai/g, "है")
-    .replace(/acha/g, "अच्छा")
-    .replace(/theek/g, "ठीक")
-    .replace(/kyu/g, "क्यों")
-    .replace(/kaise/g, "कैसे");
+    .replace(/hai/g, "है");
 }
 
-// ---------- SMOOTH VOICE ----------
+// ---------- SMOOTH ----------
 function makeVoiceNatural(text) {
   return text
     .replace(/\.\.\./g, ".")
@@ -108,8 +106,7 @@ async function textToVoice(text, filePath) {
   return new Promise((resolve, reject) => {
     const url = googleTTS.getAudioUrl(text, {
       lang: "hi",
-      slow: false,
-      host: "https://translate.google.com"
+      slow: false
     });
 
     const file = fs.createWriteStream(filePath);
@@ -206,10 +203,22 @@ module.exports.run = async function({ api, event, args }) {
     return api.sendMessage({
       body: reply,
       attachment: fs.createReadStream(file)
-    }, threadID, messageID);
+    }, threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
   }
 
-  return api.sendMessage(reply, threadID, messageID);
+  return api.sendMessage(reply, threadID, (err, info) => {
+    global.client.handleReply.push({
+      name: module.exports.config.name,
+      messageID: info.messageID,
+      author: senderID
+    });
+  }, messageID);
 };
 
 // ---------- HANDLE ----------
@@ -217,6 +226,10 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
   const { threadID, messageID, senderID, body } = event;
 
   if (senderID !== handleReply.author) return;
+
+  if (activeReplies.has(senderID)) return;
+  activeReplies.add(senderID);
+  setTimeout(() => activeReplies.delete(senderID), 1500);
 
   if (handleReply.askGender) {
     const text = body.toLowerCase();

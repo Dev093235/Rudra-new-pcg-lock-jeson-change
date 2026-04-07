@@ -91,7 +91,7 @@ async function textToVoice(text, filePath) {
   return new Promise((resolve, reject) => {
     const url = googleTTS.getAudioUrl(text, {
       lang: "hi",
-      slow: true,
+      slow: false,
       host: "https://translate.google.com"
     });
 

@@ -1,13 +1,14 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const gTTS = require("gtts");
+const https = require("https");
+const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "16.0.0",
+    version: "17.0.0",
     hasPermssion: 0,
-    credits: "Rudra Final Stable",
+    credits: "Rudra Fixed Final",
     description: "GF/BF AI + Voice + Ask System",
     commandCategory: "ai",
     usages: "[message]",
@@ -63,10 +64,28 @@ function saveHistory(id, history) {
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2));
 }
 
-// --- VOICE ---
-function textToVoice(text, filePath) {
-  return new Promise((res, rej) => {
-    new gTTS(text, "en").save(filePath, err => err ? rej(err) : res());
+// --- VOICE (FIXED) ---
+async function textToVoice(text, filePath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = googleTTS.getAudioUrl(text, {
+        lang: "en",
+        slow: false,
+        host: "https://translate.google.com",
+      });
+
+      const file = fs.createWriteStream(filePath);
+      https.get(url, (res) => {
+        res.pipe(file);
+        file.on("finish", () => {
+          file.close();
+          resolve();
+        });
+      }).on("error", reject);
+
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -88,7 +107,7 @@ async function getReply(userID, prompt) {
   const messages = [
     {
       role: "system",
-      content: "Tum Radha ho — bold, teasing, seductive aur savage. Hinglish me short reply do 😏🔥"
+      content: "Tum Radha ho — bold, teasing, seductive aur playful. Hinglish me short reply do 😏🔥"
     },
     { role: "system", content: dynamic },
     ...history,
@@ -129,7 +148,6 @@ module.exports.run = async function({ api, event, args }) {
   const prompt = args.join(" ").trim() || body.trim();
   const user = getUser(senderID);
 
-  // --- VOICE SWITCH ---
   if (prompt.toLowerCase() === "voice on") {
     setUser(senderID, { voice: true });
     return api.sendMessage("Ab main bolungi bhi 😏🎤", threadID, messageID);
@@ -140,7 +158,6 @@ module.exports.run = async function({ api, event, args }) {
     return api.sendMessage("Theek hai… sirf text 😌", threadID, messageID);
   }
 
-  // --- ASK GENDER ---
   if (!user.gender) {
     return api.sendMessage(
       "Tum ladka ho ya ladki? 😏",
@@ -183,7 +200,6 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
 
   if (senderID !== handleReply.author) return;
 
-  // --- SAVE GENDER ---
   if (handleReply.askGender) {
     const text = body.toLowerCase();
 

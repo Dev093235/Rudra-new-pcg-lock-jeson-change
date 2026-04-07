@@ -1,10 +1,10 @@
 {
     "language": "en",
     "keyActive": "",
-    "DeveloperMode": false,
+    "DeveloperMode": true,
     "autoCreateDB": true,
     "allowInbox": false,
-    "autoClean": false,
+    "autoClean": true,
     "adminOnly": false,
     "keyAdminOnly": "",
     "commandDisabled": [],

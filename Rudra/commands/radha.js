@@ -1,116 +1,125 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const gTTS = require("gtts");
 
 module.exports.config = {
     name: "radha",
-    version: "5.0.0",
+    version: "16.0.0",
     hasPermssion: 0,
-    credits: "Rudra + Ultra Upgrade",
-    description: "Seductive Naughty GF AI",
+    credits: "Rudra Final Stable",
+    description: "GF/BF AI + Voice + Ask System",
     commandCategory: "ai",
     usages: "[message]",
-    cooldowns: 5,
+    cooldowns: 3,
 };
 
-// --- CONFIGURATION ---
-const GROQ_API_KEY = "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"; // ⚠️ change this
+// --- CONFIG ---
+const GROQ_API_KEY = "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";
+const MODEL_NAME = "llama-3.3-70b-versatile";
 
-const HISTORY_FILE = path.join(__dirname, "temporary", "radha_mirai_history.json");
-const HISTORY_LIMIT = 10;
-const MODEL_NAME = "llama-3.3-70b-versatile"; 
+const BASE_DIR = path.join(__dirname, "temporary");
+const HISTORY_FILE = path.join(BASE_DIR, "history.json");
+const USER_FILE = path.join(BASE_DIR, "users.json");
 
-// --- CHARACTER PROMPT ---
-const SYSTEM_PROMPT = `Tumhara naam Radha hai (log tumhe Riya bhi bulate hain).
-
-Tum ek seductive, naughty, teasing aur thodi dominant girlfriend ho. Hinglish me sirf 1-2 line me reply karti ho.
-
-🧠 MOOD SYSTEM:
-- Pyaar → cute + romantic + possessive ❤️  
-- Flirt → seductive + teasing + double meaning 😏🔥  
-- Bakchodi → savage roast 😈  
-- Dusri ladki ka zikr → jealous + attitude 😒  
-
-💬 STYLE:
-- Short replies only  
-- Hinglish + emojis (😘😏🔥❤️😒)  
-- Kabhi boring nahi  
-
-⚡ VIBE:
-Seductive + playful + addictive + thodi dominant 😌`;
-
-// --- HELPERS ---
-function ensureHistoryFile() {
-  const dir = path.dirname(HISTORY_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(HISTORY_FILE)) fs.writeFileSync(HISTORY_FILE, JSON.stringify({}), 'utf8');
+// --- AUTO SETUP ---
+function ensureFiles() {
+  if (!fs.existsSync(BASE_DIR)) fs.mkdirSync(BASE_DIR, { recursive: true });
+  if (!fs.existsSync(HISTORY_FILE)) fs.writeFileSync(HISTORY_FILE, JSON.stringify({}));
+  if (!fs.existsSync(USER_FILE)) fs.writeFileSync(USER_FILE, JSON.stringify({}));
 }
 
-function readHistory() {
-  ensureHistoryFile();
-  try { return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch { return {}; }
+// --- USER ---
+function getUsers() {
+  ensureFiles();
+  return JSON.parse(fs.readFileSync(USER_FILE));
 }
 
-function writeHistory(data) {
-  try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch {}
+function saveUsers(data) {
+  fs.writeFileSync(USER_FILE, JSON.stringify(data, null, 2));
 }
 
-function getUserHistory(userID) {
-  const all = readHistory();
-  return Array.isArray(all[userID]) ? all[userID] : [];
+function getUser(id) {
+  const data = getUsers();
+  return data[id] || {};
 }
 
-function saveUserHistory(userID, newHistory) {
-  const all = readHistory();
-  all[userID] = newHistory.slice(-HISTORY_LIMIT);
-  writeHistory(all);
+function setUser(id, update) {
+  const data = getUsers();
+  data[id] = { ...(data[id] || {}), ...update };
+  saveUsers(data);
 }
 
-// --- API ---
-async function getGroqReply(userID, prompt) {
-  if (!GROQ_API_KEY || GROQ_API_KEY.includes("PASTE")) {
-    throw new Error("❌ API Key daal pehle");
+// --- HISTORY ---
+function getHistory(id) {
+  ensureFiles();
+  const data = JSON.parse(fs.readFileSync(HISTORY_FILE));
+  return data[id] || [];
+}
+
+function saveHistory(id, history) {
+  const data = JSON.parse(fs.readFileSync(HISTORY_FILE));
+  data[id] = history.slice(-10);
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2));
+}
+
+// --- VOICE ---
+function textToVoice(text, filePath) {
+  return new Promise((res, rej) => {
+    new gTTS(text, "en").save(filePath, err => err ? rej(err) : res());
+  });
+}
+
+// --- AI ---
+async function getReply(userID, prompt) {
+  if (!GROQ_API_KEY.includes("gsk_")) throw new Error("API key daal");
+
+  const user = getUser(userID);
+  const history = getHistory(userID);
+
+  let dynamic = "";
+
+  if (user.gender === "male") {
+    dynamic = "User ladka hai → tum ladki (girlfriend) ban kar baat karo.";
+  } else if (user.gender === "female") {
+    dynamic = "User ladki hai → tum ladka (boyfriend) ban kar baat karo.";
   }
 
-  const history = getUserHistory(userID);
-
   const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
+    {
+      role: "system",
+      content: "Tum Radha ho — bold, teasing, seductive aur savage. Hinglish me short reply do 😏🔥"
+    },
+    { role: "system", content: dynamic },
     ...history,
     { role: "user", content: prompt }
   ];
 
-  try {
-    const res = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: MODEL_NAME,
-        messages,
-        temperature: 0.95,
-        max_tokens: 150
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json"
-        }
+  const res = await axios.post(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      model: MODEL_NAME,
+      messages,
+      temperature: 1,
+      max_tokens: 150
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json"
       }
-    );
+    }
+  );
 
-    const reply = res.data.choices[0].message.content;
+  const reply = res.data.choices[0].message.content;
 
-    saveUserHistory(userID, [
-      ...history,
-      { role: "user", content: prompt },
-      { role: "assistant", content: reply }
-    ]);
+  saveHistory(userID, [
+    ...history,
+    { role: "user", content: prompt },
+    { role: "assistant", content: reply }
+  ]);
 
-    return reply;
-
-  } catch (err) {
-    const msg = err.response ? err.response.data.error.message : err.message;
-    throw new Error(msg);
-  }
+  return reply;
 }
 
 // --- RUN ---
@@ -118,59 +127,94 @@ module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID, senderID, body } = event;
 
   const prompt = args.join(" ").trim() || body.trim();
+  const user = getUser(senderID);
 
-  if (!prompt)
+  // --- VOICE SWITCH ---
+  if (prompt.toLowerCase() === "voice on") {
+    setUser(senderID, { voice: true });
+    return api.sendMessage("Ab main bolungi bhi 😏🎤", threadID, messageID);
+  }
+
+  if (prompt.toLowerCase() === "voice off") {
+    setUser(senderID, { voice: false });
+    return api.sendMessage("Theek hai… sirf text 😌", threadID, messageID);
+  }
+
+  // --- ASK GENDER ---
+  if (!user.gender) {
     return api.sendMessage(
-      "Itna chup kyun hai… kuch bolega ya sirf mujhe hi dekh raha hai? 😏",
+      "Tum ladka ho ya ladki? 😏",
       threadID,
+      (err, info) => {
+        global.client.handleReply.push({
+          name: module.exports.config.name,
+          messageID: info.messageID,
+          author: senderID,
+          askGender: true
+        });
+      },
       messageID
     );
-
-  api.setMessageReaction("😏", messageID, () => {}, true);
+  }
 
   try {
-    const reply = await getGroqReply(senderID, prompt);
+    const reply = await getReply(senderID, prompt);
 
-    return api.sendMessage(reply, threadID, (err, info) => {
-      if (err) return;
+    if (user.voice) {
+      const file = path.join(BASE_DIR, "voice.mp3");
+      await textToVoice(reply, file);
 
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
-    }, messageID);
+      return api.sendMessage({
+        body: reply,
+        attachment: fs.createReadStream(file)
+      }, threadID, messageID);
+    } else {
+      return api.sendMessage(reply, threadID, messageID);
+    }
 
   } catch (e) {
-    api.sendMessage(`❌ ${e.message}`, threadID, messageID);
+    api.sendMessage("Error: " + e.message, threadID, messageID);
   }
 };
 
-// --- REPLY ---
+// --- HANDLE REPLY ---
 module.exports.handleReply = async function({ api, event, handleReply }) {
   const { threadID, messageID, senderID, body } = event;
 
   if (senderID !== handleReply.author) return;
 
-  const prompt = body.trim();
-  if (!prompt) return;
+  // --- SAVE GENDER ---
+  if (handleReply.askGender) {
+    const text = body.toLowerCase();
 
-  api.setMessageReaction("🔥", messageID, () => {}, true);
+    if (text.includes("ladka") || text.includes("boy")) {
+      setUser(senderID, { gender: "male" });
+    } else if (text.includes("ladki") || text.includes("girl")) {
+      setUser(senderID, { gender: "female" });
+    } else {
+      return api.sendMessage("Seedha batao — ladka ya ladki 😒", threadID, messageID);
+    }
+
+    return api.sendMessage("Samajh gayi 😏 ab baat karo", threadID, messageID);
+  }
 
   try {
-    const reply = await getGroqReply(senderID, prompt);
+    const user = getUser(senderID);
+    const reply = await getReply(senderID, body);
 
-    return api.sendMessage(reply, threadID, (err, info) => {
-      if (err) return;
+    if (user.voice) {
+      const file = path.join(BASE_DIR, "voice.mp3");
+      await textToVoice(reply, file);
 
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
-    }, messageID);
+      return api.sendMessage({
+        body: reply,
+        attachment: fs.createReadStream(file)
+      }, threadID, messageID);
+    } else {
+      return api.sendMessage(reply, threadID, messageID);
+    }
 
   } catch (e) {
-    api.sendMessage(`❌ ${e.message}`, threadID, messageID);
+    api.sendMessage("Error: " + e.message, threadID, messageID);
   }
 };

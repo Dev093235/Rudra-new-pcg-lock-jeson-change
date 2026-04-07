@@ -6,10 +6,10 @@ const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "ULTRA-FINAL",
+    version: "ABSOLUTE-FINAL",
     hasPermssion: 0,
-    credits: "Rudra Ultra Final",
-    description: "Radha AI Full Perfect System",
+    credits: "Rudra Final Ultra Stable",
+    description: "Radha AI Perfect System",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 3,
@@ -24,9 +24,6 @@ const USER_FILE = path.join(BASE_DIR, "users.json");
 
 const SYSTEM_PROMPT = `Tum Radha ho — flirty, naughty, teasing GF style Hinglish 😏🔥
 Short reply dena.`;
-
-// 🔥 anti double
-const activeReplies = new Set();
 
 // ---------- SETUP ----------
 function ensureFiles() {
@@ -87,18 +84,6 @@ function toHindiSpeech(text) {
     .replace(/ho/g, "हो")
     .replace(/hu/g, "हूँ")
     .replace(/hai/g, "है");
-}
-
-// ---------- SMOOTH ----------
-function makeVoiceNatural(text) {
-  return text
-    .replace(/\.\.\./g, ".")
-    .replace(/\?/g, " ? ")
-    .replace(/\!/g, " ! ")
-    .replace(/,/g, " , ")
-    .replace(/\./g, " . ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 // ---------- VOICE ----------
@@ -163,6 +148,9 @@ async function getReply(userID, prompt) {
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID, senderID, body } = event;
 
+  // ❌ bot self ignore
+  if (senderID == api.getCurrentUserID()) return;
+
   let prompt = args.join(" ").trim() || body.trim();
   prompt = cleanText(prompt);
 
@@ -196,7 +184,6 @@ module.exports.run = async function({ api, event, args }) {
 
     let hindiText = toHindiSpeech(reply);
     hindiText = removeEmoji(hindiText);
-    hindiText = makeVoiceNatural(hindiText);
 
     await textToVoice(hindiText, file);
 
@@ -225,11 +212,8 @@ module.exports.run = async function({ api, event, args }) {
 module.exports.handleReply = async function({ api, event, handleReply }) {
   const { threadID, messageID, senderID, body } = event;
 
+  if (senderID == api.getCurrentUserID()) return;
   if (senderID !== handleReply.author) return;
-
-  if (activeReplies.has(senderID)) return;
-  activeReplies.add(senderID);
-  setTimeout(() => activeReplies.delete(senderID), 1500);
 
   if (handleReply.askGender) {
     const text = body.toLowerCase();
@@ -238,7 +222,13 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
     else if (text.includes("ladki")) setUser(senderID, { gender: "female" });
     else return api.sendMessage("Seedha bol — ladka ya ladki 😒", threadID, messageID);
 
-    return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, messageID);
+    return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
   }
 
   const user = getUser(senderID);
@@ -251,15 +241,26 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
 
     let hindiText = toHindiSpeech(reply);
     hindiText = removeEmoji(hindiText);
-    hindiText = makeVoiceNatural(hindiText);
 
     await textToVoice(hindiText, file);
 
     return api.sendMessage({
       body: reply,
       attachment: fs.createReadStream(file)
-    }, threadID, messageID);
+    }, threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
   }
 
-  return api.sendMessage(reply, threadID, messageID);
+  return api.sendMessage(reply, threadID, (err, info) => {
+    global.client.handleReply.push({
+      name: module.exports.config.name,
+      messageID: info.messageID,
+      author: senderID
+    });
+  }, messageID);
 };

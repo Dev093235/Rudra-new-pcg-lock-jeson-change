@@ -1,14 +1,13 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const https = require("https");
-const googleTTS = require("google-tts-api");
+const edgeTTS = require("edge-tts");
 
 module.exports.config = {
     name: "radha",
-    version: "ABSOLUTE-FINAL",
+    version: "ABSOLUTE-FINAL-REAL-VOICE",
     hasPermssion: 0,
-    credits: "Rudra Final Ultra Stable",
+    credits: "Rudra + Final Upgrade",
     description: "Radha AI Perfect System",
     commandCategory: "ai",
     usages: "[message]",
@@ -71,37 +70,12 @@ function removeEmoji(text) {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
 }
 
-// ---------- HINDI ----------
-function toHindiSpeech(text) {
-  return text
-    .replace(/main/g, "मैं")
-    .replace(/mai/g, "मैं")
-    .replace(/tum/g, "तुम")
-    .replace(/kya/g, "क्या")
-    .replace(/kr/g, "कर")
-    .replace(/raha/g, "रहा")
-    .replace(/rahi/g, "रही")
-    .replace(/ho/g, "हो")
-    .replace(/hu/g, "हूँ")
-    .replace(/hai/g, "है");
-}
-
-// ---------- VOICE ----------
+// ---------- VOICE (REAL HUMAN) ----------
 async function textToVoice(text, filePath) {
-  return new Promise((resolve, reject) => {
-    const url = googleTTS.getAudioUrl(text, {
-      lang: "hi",
-      slow: false
-    });
-
-    const file = fs.createWriteStream(filePath);
-    https.get(url, res => {
-      res.pipe(file);
-      file.on("finish", () => {
-        file.close();
-        resolve();
-      });
-    }).on("error", reject);
+  await edgeTTS.save({
+    text: text,
+    voice: "hi-IN-SwaraNeural", // 🔥 best female Hindi
+    file: filePath
   });
 }
 
@@ -148,7 +122,6 @@ async function getReply(userID, prompt) {
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID, senderID, body } = event;
 
-  // ❌ bot self ignore
   if (senderID == api.getCurrentUserID()) return;
 
   let prompt = args.join(" ").trim() || body.trim();
@@ -156,12 +129,14 @@ module.exports.run = async function({ api, event, args }) {
 
   const user = getUser(senderID);
 
-  if (body.toLowerCase().includes("voice on")) {
+  const msg = body.toLowerCase().trim();
+
+  if (msg === "voice on") {
     setUser(senderID, { voice: true });
     return api.sendMessage("Voice ON 😏🎤", threadID, messageID);
   }
 
-  if (body.toLowerCase().includes("voice off")) {
+  if (msg === "voice off") {
     setUser(senderID, { voice: false });
     return api.sendMessage("Voice OFF 😌", threadID, messageID);
   }
@@ -181,11 +156,9 @@ module.exports.run = async function({ api, event, args }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
+    let text = removeEmoji(reply);
 
-    let hindiText = toHindiSpeech(reply);
-    hindiText = removeEmoji(hindiText);
-
-    await textToVoice(hindiText, file);
+    await textToVoice(text, file);
 
     return api.sendMessage({
       body: reply,
@@ -238,11 +211,9 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
+    let text = removeEmoji(reply);
 
-    let hindiText = toHindiSpeech(reply);
-    hindiText = removeEmoji(hindiText);
-
-    await textToVoice(hindiText, file);
+    await textToVoice(text, file);
 
     return api.sendMessage({
       body: reply,

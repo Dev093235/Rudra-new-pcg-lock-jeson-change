@@ -6,16 +6,15 @@ const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "FINAL-OLD-STYLE",
+    version: "FINAL-FIXED",
     hasPermssion: 0,
-    credits: "Rudra Fixed Merge",
-    description: "Radha AI (Old Feel + New Power)",
+    credits: "Rudra Final Fix",
+    description: "Radha AI Hinglish + Hindi Voice Clean",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 3,
 };
 
-// --- CONFIG ---
 const GROQ_API_KEY = "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";
 const MODEL_NAME = "llama-3.3-70b-versatile";
 
@@ -23,22 +22,21 @@ const BASE_DIR = path.join(__dirname, "temporary");
 const HISTORY_FILE = path.join(BASE_DIR, "history.json");
 const USER_FILE = path.join(BASE_DIR, "users.json");
 
-// --- SYSTEM PROMPT ---
+// --- SYSTEM PROMPT (UNCHANGED) ---
 const SYSTEM_PROMPT = `Tum Radha ho — flirty, naughty, teasing GF style Hinglish 😏🔥
 Short reply dena.`;
 
-// --- FILE SETUP ---
+// ---------- SETUP ----------
 function ensureFiles() {
   if (!fs.existsSync(BASE_DIR)) fs.mkdirSync(BASE_DIR, { recursive: true });
   if (!fs.existsSync(HISTORY_FILE)) fs.writeFileSync(HISTORY_FILE, "{}");
   if (!fs.existsSync(USER_FILE)) fs.writeFileSync(USER_FILE, "{}");
 }
 
-// --- USER ---
+// ---------- USER ----------
 function getUser(id) {
   ensureFiles();
-  const data = JSON.parse(fs.readFileSync(USER_FILE));
-  return data[id] || {};
+  return JSON.parse(fs.readFileSync(USER_FILE))[id] || {};
 }
 
 function setUser(id, update) {
@@ -48,11 +46,10 @@ function setUser(id, update) {
   fs.writeFileSync(USER_FILE, JSON.stringify(data, null, 2));
 }
 
-// --- HISTORY ---
+// ---------- HISTORY ----------
 function getHistory(id) {
   ensureFiles();
-  const data = JSON.parse(fs.readFileSync(HISTORY_FILE));
-  return data[id] || [];
+  return JSON.parse(fs.readFileSync(HISTORY_FILE))[id] || [];
 }
 
 function saveHistory(id, history) {
@@ -61,13 +58,45 @@ function saveHistory(id, history) {
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2));
 }
 
-// --- VOICE ---
+// ---------- CLEAN ----------
+function cleanText(text) {
+  return text
+    .replace(/radha/gi, "")
+    .replace(/voice on/gi, "")
+    .replace(/voice off/gi, "")
+    .trim();
+}
+
+// ---------- HINGLISH → HINDI ----------
+function toHindiSpeech(text) {
+  return text
+    .replace(/main/g, "मैं")
+    .replace(/mai/g, "मैं")
+    .replace(/tum/g, "तुम")
+    .replace(/kya/g, "क्या")
+    .replace(/kr/g, "कर")
+    .replace(/raha/g, "रहा")
+    .replace(/rahi/g, "रही")
+    .replace(/ho/g, "हो")
+    .replace(/hu/g, "हूँ")
+    .replace(/hai/g, "है")
+    .replace(/acha/g, "अच्छा")
+    .replace(/theek/g, "ठीक")
+    .replace(/kyu/g, "क्यों")
+    .replace(/kaise/g, "कैसे");
+}
+
+// ---------- VOICE ----------
 async function textToVoice(text, filePath) {
   return new Promise((resolve, reject) => {
-    const url = googleTTS.getAudioUrl(text, { lang: "en", slow: false });
+    const url = googleTTS.getAudioUrl(text, {
+      lang: "hi",
+      slow: true,
+      host: "https://translate.google.com"
+    });
 
     const file = fs.createWriteStream(filePath);
-    https.get(url, (res) => {
+    https.get(url, res => {
       res.pipe(file);
       file.on("finish", () => {
         file.close();
@@ -77,7 +106,7 @@ async function textToVoice(text, filePath) {
   });
 }
 
-// --- AI ---
+// ---------- AI ----------
 async function getReply(userID, prompt) {
   const user = getUser(userID);
   const history = getHistory(userID);
@@ -116,112 +145,115 @@ async function getReply(userID, prompt) {
   return reply;
 }
 
-// --- MAIN ---
+// ---------- MAIN ----------
 module.exports.run = async function({ api, event, args }) {
-    const { threadID, messageID, senderID, body } = event;
+  const { threadID, messageID, senderID, body } = event;
 
-    const prompt = args.join(" ").trim() || body.trim();
-    const user = getUser(senderID);
+  let prompt = args.join(" ").trim() || body.trim();
+  prompt = cleanText(prompt);
 
-    // Voice toggle
-    if (prompt.toLowerCase() === "voice on") {
-      setUser(senderID, { voice: true });
-      return api.sendMessage("Voice ON 😏🎤", threadID, messageID);
-    }
+  const user = getUser(senderID);
 
-    if (prompt.toLowerCase() === "voice off") {
-      setUser(senderID, { voice: false });
-      return api.sendMessage("Voice OFF 😌", threadID, messageID);
-    }
+  if (body.toLowerCase().includes("voice on")) {
+    setUser(senderID, { voice: true });
+    return api.sendMessage("Voice ON 😏🎤", threadID, messageID);
+  }
 
-    // Ask gender
-    if (!user.gender) {
-      return api.sendMessage("Tum ladka ho ya ladki? 😏", threadID, (err, info) => {
-        global.client.handleReply.push({
-          name: module.exports.config.name,
-          messageID: info.messageID,
-          author: senderID,
-          askGender: true
-        });
-      }, messageID);
-    }
+  if (body.toLowerCase().includes("voice off")) {
+    setUser(senderID, { voice: false });
+    return api.sendMessage("Voice OFF 😌", threadID, messageID);
+  }
 
-    const reply = await getReply(senderID, prompt);
-
-    // Voice
-    if (user.voice) {
-      const file = path.join(BASE_DIR, "voice.mp3");
-      await textToVoice(reply, file);
-
-      return api.sendMessage({
-        body: reply,
-        attachment: fs.createReadStream(file)
-      }, threadID, (err, info) => {
-        global.client.handleReply.push({
-          name: module.exports.config.name,
-          messageID: info.messageID,
-          author: senderID
-        });
-      }, messageID);
-    }
-
-    // TEXT (old style)
-    return api.sendMessage(reply, threadID, (err, info) => {
-        global.client.handleReply.push({
-            name: module.exports.config.name,
-            messageID: info.messageID,
-            author: senderID
-        });
+  if (!user.gender) {
+    return api.sendMessage("Tum ladka ho ya ladki? 😏", threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID,
+        askGender: true
+      });
     }, messageID);
+  }
+
+  const reply = await getReply(senderID, prompt);
+
+  if (user.voice) {
+    const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
+    const hindiText = toHindiSpeech(reply);
+
+    await textToVoice(hindiText, file);
+
+    return api.sendMessage({
+      body: reply,
+      attachment: fs.createReadStream(file)
+    }, threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
+  }
+
+  return api.sendMessage(reply, threadID, (err, info) => {
+    global.client.handleReply.push({
+      name: module.exports.config.name,
+      messageID: info.messageID,
+      author: senderID
+    });
+  }, messageID);
 };
 
-// --- HANDLE ---
+// ---------- HANDLE ----------
 module.exports.handleReply = async function({ api, event, handleReply }) {
-    const { threadID, messageID, senderID, body } = event;
+  const { threadID, messageID, senderID, body } = event;
 
-    if (senderID !== handleReply.author) return;
+  if (senderID !== handleReply.author) return;
 
-    // Gender save + CONTINUE CHAIN
-    if (handleReply.askGender) {
-      const text = body.toLowerCase();
+  if (handleReply.askGender) {
+    const text = body.toLowerCase();
 
-      if (text.includes("ladka")) setUser(senderID, { gender: "male" });
-      else if (text.includes("ladki")) setUser(senderID, { gender: "female" });
-      else return api.sendMessage("Seedha bol — ladka ya ladki 😒", threadID, messageID);
+    if (text.includes("ladka")) setUser(senderID, { gender: "male" });
+    else if (text.includes("ladki")) setUser(senderID, { gender: "female" });
+    else return api.sendMessage("Seedha bol — ladka ya ladki 😒", threadID, messageID);
 
-      return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, (err, info) => {
-        global.client.handleReply.push({
-          name: module.exports.config.name,
-          messageID: info.messageID,
-          author: senderID
-        });
-      }, messageID);
-    }
-
-    const user = getUser(senderID);
-    const reply = await getReply(senderID, body);
-
-    if (user.voice) {
-      const file = path.join(BASE_DIR, "voice.mp3");
-      await textToVoice(reply, file);
-
-      return api.sendMessage({
-        body: reply,
-        attachment: fs.createReadStream(file)
-      }, threadID, (err, info) => {
-        global.client.handleReply.push({
-          name: module.exports.config.name,
-          messageID: info.messageID,
-          author: senderID
-        });
-      }, messageID);
-    }
-
-    return api.sendMessage(reply, threadID, (err, info) => {
-        global.client.handleReply.push({
-            name: module.exports.config.name,
-            messageID: info.messageID,
-            author: senderID
-        });
+    return api.sendMessage("Samajh gayi 😏 ab baat kar", threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
     }, messageID);
+  }
+
+  const user = getUser(senderID);
+  let clean = cleanText(body);
+
+  const reply = await getReply(senderID, clean);
+
+  if (user.voice) {
+    const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
+    const hindiText = toHindiSpeech(reply);
+
+    await textToVoice(hindiText, file);
+
+    return api.sendMessage({
+      body: reply,
+      attachment: fs.createReadStream(file)
+    }, threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
+  }
+
+  return api.sendMessage(reply, threadID, (err, info) => {
+    global.client.handleReply.push({
+      name: module.exports.config.name,
+      messageID: info.messageID,
+      author: senderID
+    });
+  }, messageID);
 };

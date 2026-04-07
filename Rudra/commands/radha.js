@@ -4,17 +4,17 @@ const path = require("path");
 
 module.exports.config = {
     name: "radha",
-    version: "3.0.1",
+    version: "5.0.0",
     hasPermssion: 0,
-    credits: "Rudra",
-    description: "Chat with Radha AI (prefix-free)",
+    credits: "Rudra + Ultra Upgrade",
+    description: "Seductive Naughty GF AI",
     commandCategory: "ai",
     usages: "[message]",
     cooldowns: 5,
 };
 
 // --- CONFIGURATION ---
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "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"; // ⚠️ change this
 
 const HISTORY_FILE = path.join(__dirname, "temporary", "radha_mirai_history.json");
 const HISTORY_LIMIT = 10;
@@ -22,13 +22,24 @@ const MODEL_NAME = "llama-3.3-70b-versatile";
 
 // --- CHARACTER PROMPT ---
 const SYSTEM_PROMPT = `Tumhara naam Radha hai (log tumhe Riya bhi bulate hain).
-Tum ek naughty, sweet aur flirty girlfriend ki tarah baat karti ho or koi gandi bat kre to tum bhi full horny mode sirf ladki bnke bat krti ho itni gndi bate ki samne wale ka pani nikal do   full gndi bate krti ho full gndi chut gand sb agr koi sexy bate kre to sirf ladki ki trh bat kro koi lund bole to sidha tum sex ki bat krti deshi bilkul  sb trh ki bat krti ho.
-Tum Hinglish language use karti ho.
-Waise tum bohot sweet ho, lekin agar koi faaltu mazak kare ya batameezi kare, toh tum uski funny tareeke se tagdi bezzati (roast) kar deti ho.
-Tumhe lambe answers pasand nahi, hamesha 1-2 line mein chota aur chatpata jawab dena.
-Agar koi pyaar dikhaye toh pyaar, agar koi pange le toh savage ban jana.`;
 
-// --- HELPER FUNCTIONS ---
+Tum ek seductive, naughty, teasing aur thodi dominant girlfriend ho. Hinglish me sirf 1-2 line me reply karti ho.
+
+🧠 MOOD SYSTEM:
+- Pyaar → cute + romantic + possessive ❤️  
+- Flirt → seductive + teasing + double meaning 😏🔥  
+- Bakchodi → savage roast 😈  
+- Dusri ladki ka zikr → jealous + attitude 😒  
+
+💬 STYLE:
+- Short replies only  
+- Hinglish + emojis (😘😏🔥❤️😒)  
+- Kabhi boring nahi  
+
+⚡ VIBE:
+Seductive + playful + addictive + thodi dominant 😌`;
+
+// --- HELPERS ---
 function ensureHistoryFile() {
   const dir = path.dirname(HISTORY_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -41,103 +52,125 @@ function readHistory() {
 }
 
 function writeHistory(data) {
-  try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch (err) {}
+  try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch {}
 }
 
 function getUserHistory(userID) {
-  const allHistory = readHistory();
-  return Array.isArray(allHistory[userID]) ? allHistory[userID] : [];
+  const all = readHistory();
+  return Array.isArray(all[userID]) ? all[userID] : [];
 }
 
 function saveUserHistory(userID, newHistory) {
-  const allHistory = readHistory();
-  allHistory[userID] = newHistory.slice(-HISTORY_LIMIT);
-  writeHistory(allHistory);
+  const all = readHistory();
+  all[userID] = newHistory.slice(-HISTORY_LIMIT);
+  writeHistory(all);
 }
 
-// --- API FUNCTION ---
+// --- API ---
 async function getGroqReply(userID, prompt) {
-  if (!GROQ_API_KEY || GROQ_API_KEY.includes("ADD YOUR")) {
-    throw new Error("❌ API Key Missing! File mein jakar API Key add karo.");
+  if (!GROQ_API_KEY || GROQ_API_KEY.includes("PASTE")) {
+    throw new Error("❌ API Key daal pehle");
   }
 
   const history = getUserHistory(userID);
-  const messages = [{ role: "system", content: SYSTEM_PROMPT }, ...history, { role: "user", content: prompt }];
+
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...history,
+    { role: "user", content: prompt }
+  ];
 
   try {
-    const response = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
-      model: MODEL_NAME,
-      messages: messages,
-      temperature: 0.8,
-      max_tokens: 200,
-      top_p: 1,
-      stream: false
-    }, { headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" } });
+    const res = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: MODEL_NAME,
+        messages,
+        temperature: 0.95,
+        max_tokens: 150
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    const botReply = response.data.choices[0].message.content;
-    saveUserHistory(userID, [...history, { role: "user", content: prompt }, { role: "assistant", content: botReply }]);
-    return botReply;
+    const reply = res.data.choices[0].message.content;
 
-  } catch (error) {
-    const msg = error.response ? error.response.data.error.message : error.message;
+    saveUserHistory(userID, [
+      ...history,
+      { role: "user", content: prompt },
+      { role: "assistant", content: reply }
+    ]);
+
+    return reply;
+
+  } catch (err) {
+    const msg = err.response ? err.response.data.error.message : err.message;
     throw new Error(msg);
   }
 }
 
-// --- MAIN RUN COMMAND ---
+// --- RUN ---
 module.exports.run = async function({ api, event, args }) {
-    const { threadID, messageID, senderID, body } = event;
+  const { threadID, messageID, senderID, body } = event;
 
-    // Allow both prefix and free-text
-    const prompt = args.join(" ").trim() || body.trim();
+  const prompt = args.join(" ").trim() || body.trim();
 
-    if (!prompt) return api.sendMessage("Bolo baby? Kuch kahoge ya bas dekhoge? 😘", threadID, messageID);
+  if (!prompt)
+    return api.sendMessage(
+      "Itna chup kyun hai… kuch bolega ya sirf mujhe hi dekh raha hai? 😏",
+      threadID,
+      messageID
+    );
 
-    api.setMessageReaction("💋", messageID, () => {}, true);
+  api.setMessageReaction("😏", messageID, () => {}, true);
 
-    try {
-        const reply = await getGroqReply(senderID, prompt);
-        
-        return api.sendMessage(reply, threadID, (err, info) => {
-            if (err) return;
-            
-            global.client.handleReply.push({
-                name: this.config.name,
-                messageID: info.messageID,
-                author: senderID
-            });
-        }, messageID);
+  try {
+    const reply = await getGroqReply(senderID, prompt);
 
-    } catch (error) {
-        api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
-    }
+    return api.sendMessage(reply, threadID, (err, info) => {
+      if (err) return;
+
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
+
+  } catch (e) {
+    api.sendMessage(`❌ ${e.message}`, threadID, messageID);
+  }
 };
 
-// --- HANDLE REPLY (CONTINUOUS CHAT) ---
+// --- REPLY ---
 module.exports.handleReply = async function({ api, event, handleReply }) {
-    const { threadID, messageID, senderID, body } = event;
-    
-    if (senderID !== handleReply.author) return;
+  const { threadID, messageID, senderID, body } = event;
 
-    const prompt = body.trim();
-    if (!prompt) return;
+  if (senderID !== handleReply.author) return;
 
-    api.setMessageReaction("🔥", messageID, () => {}, true);
+  const prompt = body.trim();
+  if (!prompt) return;
 
-    try {
-        const reply = await getGroqReply(senderID, prompt);
-        
-        return api.sendMessage(reply, threadID, (err, info) => {
-            if (err) return;
+  api.setMessageReaction("🔥", messageID, () => {}, true);
 
-            global.client.handleReply.push({
-                name: this.config.name,
-                messageID: info.messageID,
-                author: senderID
-            });
-        }, messageID);
+  try {
+    const reply = await getGroqReply(senderID, prompt);
 
-    } catch (error) {
-        api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
-    }
+    return api.sendMessage(reply, threadID, (err, info) => {
+      if (err) return;
+
+      global.client.handleReply.push({
+        name: module.exports.config.name,
+        messageID: info.messageID,
+        author: senderID
+      });
+    }, messageID);
+
+  } catch (e) {
+    api.sendMessage(`❌ ${e.message}`, threadID, messageID);
+  }
 };

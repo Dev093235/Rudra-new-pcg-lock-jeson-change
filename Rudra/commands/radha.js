@@ -1,13 +1,14 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const edgeTTS = require("edge-tts");
+const https = require("https");
+const googleTTS = require("google-tts-api");
 
 module.exports.config = {
     name: "radha",
-    version: "ABSOLUTE-FINAL-REAL-VOICE",
+    version: "ABSOLUTE-FINAL-VOICE-UPGRADED",
     hasPermssion: 0,
-    credits: "Rudra + Final Upgrade",
+    credits: "Rudra + ChatGPT Fix",
     description: "Radha AI Perfect System",
     commandCategory: "ai",
     usages: "[message]",
@@ -70,12 +71,57 @@ function removeEmoji(text) {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
 }
 
-// ---------- VOICE (REAL HUMAN) ----------
+// ---------- HINDI ----------
+function toHindiSpeech(text) {
+  return text
+    .replace(/main/g, "मैं")
+    .replace(/mai/g, "मैं")
+    .replace(/tum/g, "तुम")
+    .replace(/kya/g, "क्या")
+    .replace(/kr/g, "कर")
+    .replace(/raha/g, "रहा")
+    .replace(/rahi/g, "रही")
+    .replace(/ho/g, "हो")
+    .replace(/hu/g, "हूँ")
+    .replace(/hai/g, "है");
+}
+
+// ---------- VOICE IMPROVE ----------
+function makeVoiceHuman(text) {
+  return text
+    .replace(/\./g, " . ")
+    .replace(/,/g, " , ")
+    .replace(/\?/g, " ? ")
+    .replace(/\!/g, " ! ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function addEmotion(text) {
+  return text
+    .replace(/acha/gi, "अच्छा...")
+    .replace(/haan/gi, "हाँ...")
+    .replace(/kya/gi, "क्या...")
+    .replace(/tum/gi, "तुम...")
+    .replace(/main/gi, "मैं...");
+}
+
+// ---------- VOICE ----------
 async function textToVoice(text, filePath) {
-  await edgeTTS.save({
-    text: text,
-    voice: "hi-IN-SwaraNeural", // 🔥 best female Hindi
-    file: filePath
+  return new Promise((resolve, reject) => {
+    const url = googleTTS.getAudioUrl(text, {
+      lang: "hi",
+      slow: false // 🔥 better natural
+    });
+
+    const file = fs.createWriteStream(filePath);
+    https.get(url, res => {
+      res.pipe(file);
+      file.on("finish", () => {
+        file.close();
+        resolve();
+      });
+    }).on("error", reject);
   });
 }
 
@@ -129,14 +175,12 @@ module.exports.run = async function({ api, event, args }) {
 
   const user = getUser(senderID);
 
-  const msg = body.toLowerCase().trim();
-
-  if (msg === "voice on") {
+  if (body.toLowerCase().includes("voice on")) {
     setUser(senderID, { voice: true });
     return api.sendMessage("Voice ON 😏🎤", threadID, messageID);
   }
 
-  if (msg === "voice off") {
+  if (body.toLowerCase().includes("voice off")) {
     setUser(senderID, { voice: false });
     return api.sendMessage("Voice OFF 😌", threadID, messageID);
   }
@@ -156,9 +200,13 @@ module.exports.run = async function({ api, event, args }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
-    let text = removeEmoji(reply);
 
-    await textToVoice(text, file);
+    let hindiText = toHindiSpeech(reply);
+    hindiText = removeEmoji(hindiText);
+    hindiText = addEmotion(hindiText);
+    hindiText = makeVoiceHuman(hindiText);
+
+    await textToVoice(hindiText, file);
 
     return api.sendMessage({
       body: reply,
@@ -211,9 +259,13 @@ module.exports.handleReply = async function({ api, event, handleReply }) {
 
   if (user.voice) {
     const file = path.join(BASE_DIR, `${Date.now()}.mp3`);
-    let text = removeEmoji(reply);
 
-    await textToVoice(text, file);
+    let hindiText = toHindiSpeech(reply);
+    hindiText = removeEmoji(hindiText);
+    hindiText = addEmotion(hindiText);
+    hindiText = makeVoiceHuman(hindiText);
+
+    await textToVoice(hindiText, file);
 
     return api.sendMessage({
       body: reply,

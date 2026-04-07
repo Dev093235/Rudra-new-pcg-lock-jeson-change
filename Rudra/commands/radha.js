@@ -16,7 +16,7 @@ module.exports.config = {
 };
 
 // --- CONFIG ---
-const GROQ_API_KEY = "PASTE_API_KEY";
+const GROQ_API_KEY = "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";
 const MODEL_NAME = "llama-3.3-70b-versatile";
 
 const BASE_DIR = path.join(__dirname, "temporary");

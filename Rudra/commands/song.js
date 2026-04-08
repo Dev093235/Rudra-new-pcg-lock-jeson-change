@@ -1,115 +1,119 @@
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const ytSearch = require("yt-search");
 
 module.exports.config = {
     name: "song",
-    version: "1.6.0",
+    version: "3.0.0",
     hasPermssion: 0,
-    credits: "Shaan Khan",
-    description: "Download music with reactions and custom formatting",
+    credits: "ChatGPT PRO FIX",
+    description: "Ultra fast song downloader 🎧",
     commandCategory: "Media",
-    usages: "[song name/URL]",
+    usages: "[song name]",
     cooldowns: 5
 };
 
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID } = event;
 
-    // 🔑 API KEY
-    const PRIYANSHU_API_KEY = "apim_ycObVhoGor3PMoZkzFxNnqyKIwYo9Mr932yDyjZ8M9E"; 
-
     if (!args.length) {
-        return api.sendMessage("❌ Please enter a song name or YouTube URL.", threadID, messageID);
+        return api.sendMessage("❌ Song name daal bhai", threadID, messageID);
     }
 
-    const input = args.join(" ");
+    const query = args.join(" ");
     const cacheDir = path.join(__dirname, "cache");
-    const fileName = `${Date.now()}.mp3`;
-    const cachePath = path.join(cacheDir, fileName);
+    const filePath = path.join(cacheDir, `${Date.now()}.mp3`);
 
-    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+    if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+    }
 
-    let processingMsg;
+    let loadingMsg;
+
     try {
-        // 1. Initial Reaction (Loading)
-        api.setMessageReaction("⌛", messageID, (err) => {}, true);
+        api.setMessageReaction("⌛", messageID, () => {}, true);
+        loadingMsg = await api.sendMessage("🔍 Song dhund raha hu...", threadID);
 
-        // Status Message
-        processingMsg = await api.sendMessage("✅ Apki Request Jari Hai Please Wait...", threadID);
-
-        // 2. YouTube Search
-        const searchResult = await ytSearch(input);
-        if (!searchResult || !searchResult.videos.length) {
-            api.setMessageReaction("❌", messageID, (err) => {}, true);
-            return api.sendMessage("❌ Song not found.", threadID, messageID);
+        // 🔎 Search YouTube
+        const search = await ytSearch(query);
+        if (!search.videos.length) {
+            throw new Error("Song nahi mila");
         }
-        const video = searchResult.videos[0];
+
+        const video = search.videos[0];
         const videoUrl = video.url;
 
-        // 3. Calling API
-        const apiUrl = `https://priyanshuapi.xyz/api/runner/youtube-downloader-v2/download`;
-        const response = await axios.post(apiUrl, {
-            url: videoUrl,
-            format: "mp3",
-            quality: "320"
-        }, {
-            headers: {
-                'Authorization': `Bearer ${PRIYANSHU_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 60000
-        });
+        let downloadLink;
 
-        const data = response.data.data;
-        if (!data || !data.downloadUrl) {
-            throw new Error("Download link not found.");
+        // 🥇 METHOD 1 (Vevioz)
+        try {
+            const res = await axios.get(`https://api.vevioz.com/api/button/mp3?url=${encodeURIComponent(videoUrl)}`);
+            downloadLink = res.data.match(/href="(.*?)"/)[1];
+        } catch {
+            console.log("Vevioz fail, trying backup...");
         }
 
-        // 4. Formatting Message (Title/Artist with Gap + Your Footer)
-        const infoMsg = `🖤 𝗧𝗶𝘁𝗹𝗲: ${video.title}\n\n⏱️ 𝗗𝘂𝗿𝗮𝘁𝗶𝗼𝗻: ${video.timestamp}\n\n👤 𝗔𝗿𝘁𝗶𝘀𝘁: ${video.author.name}\\n🥀𝒀𝑬 𝑳𝑶 𝑩𝑨𝑩𝒀 𝑨𝑷𝑲𝑰     👉SONG`;
+        // 🥈 METHOD 2 (Backup API)
+        if (!downloadLink) {
+            try {
+                const res = await axios.get(`https://vihangayt.me/download/mp3?url=${encodeURIComponent(videoUrl)}`);
+                downloadLink = res.data.link;
+            } catch {
+                console.log("Backup API bhi fail");
+            }
+        }
 
-        await api.sendMessage(infoMsg, threadID);
+        if (!downloadLink) {
+            throw new Error("Download link nahi mila");
+        }
 
-        // 5. Optimized Download
-        const writer = fs.createWriteStream(cachePath);
-        const streamResponse = await axios({
-            url: data.downloadUrl,
-            method: 'GET',
-            responseType: 'stream'
+        // 📥 Download
+        const writer = fs.createWriteStream(filePath);
+
+        const stream = await axios({
+            url: downloadLink,
+            method: "GET",
+            responseType: "stream",
+            timeout: 30000
         });
 
-        streamResponse.data.pipe(writer);
+        stream.data.pipe(writer);
 
         writer.on("finish", async () => {
-            const stats = fs.statSync(cachePath);
-            const fileSizeInMB = stats.size / (1024 * 1024);
 
-            if (fileSizeInMB > 48) {
-                api.setMessageReaction("❌", messageID, (err) => {}, true);
-                api.sendMessage(`⚠️ Song size (${fileSizeInMB.toFixed(2)}MB) is too large.`, threadID, messageID);
-                return fs.unlinkSync(cachePath);
-            }
+            const msg =
+`╭─❍ 🎧 SONG DOWNLOADED ❍
+│
+│ 🖤 Title: ${video.title}
+│ ⏱ Duration: ${video.timestamp}
+│ 👤 Artist: ${video.author.name}
+│ 👁 Views: ${video.views}
+│
+╰─➤ 🥀 YE LO BABY APKI SONG 💖`;
 
-            // Send Audio File
+            await api.sendMessage(msg, threadID);
+
             api.sendMessage({
-                attachment: fs.createReadStream(cachePath)
+                attachment: fs.createReadStream(filePath)
             }, threadID, () => {
-                // Final Reaction (Done)
-                api.setMessageReaction("✅", messageID, (err) => {}, true);
+                api.setMessageReaction("✅", messageID, () => {}, true);
 
-                if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
-                if (processingMsg) api.unsendMessage(processingMsg.messageID);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                if (loadingMsg) api.unsendMessage(loadingMsg.messageID);
             });
         });
 
-        writer.on("error", (err) => { throw err; });
+        writer.on("error", () => {
+            throw new Error("Download fail ho gaya");
+        });
 
-    } catch (error) {
-        console.error(error);
-        api.setMessageReaction("❌", messageID, (err) => {}, true);
-        if (processingMsg) api.unsendMessage(processingMsg.messageID);
-        api.sendMessage(`❌ Failed: ${error.message}`, threadID, messageID);
+    } catch (err) {
+        console.error(err);
+        api.setMessageReaction("❌", messageID, () => {}, true);
+
+        if (loadingMsg) api.unsendMessage(loadingMsg.messageID);
+
+        api.sendMessage(`❌ Error: ${err.message}`, threadID, messageID);
     }
 };

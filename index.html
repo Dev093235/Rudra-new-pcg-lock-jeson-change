@@ -1,88 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rudra Bot — 24x7 Online</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    html, body {
-      height: 100%;
-      font-family: 'Segoe UI', sans-serif;
-      overflow: hidden;
-    }
-    .slideshow {
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-    }
-    .slideshow img {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      animation: fade 15s infinite;
-    }
-    .slideshow img:nth-child(1) { animation-delay: 0s; }
-    .slideshow img:nth-child(2) { animation-delay: 5s; }
-    .slideshow img:nth-child(3) { animation-delay: 10s; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rudra Bot — Premium</title>
 
-    @keyframes fade {
-      0% { opacity: 0; }
-      10% { opacity: 1; }
-      30% { opacity: 1; }
-      40% { opacity: 0; }
-      100% { opacity: 0; }
-    }
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 
-    .info-box {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
-      padding: 20px 30px;
-      border-radius: 20px;
-      text-align: center;
-      color: white;
-      box-shadow: 0 0 30px rgba(255, 0, 255, 0.4);
-    }
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
 
-    .info-box h1 {
-      color: #ff4ddb;
-      font-size: 24px;
-      margin-bottom: 10px;
-      text-shadow: 0 0 10px #ff4ddb;
-    }
+body{
+  height:100vh;
+  font-family:'Poppins', sans-serif;
+  overflow:hidden;
+  background:black;
+}
 
-    .info-box p {
-      font-size: 16px;
-      line-height: 1.5;
-    }
+/* 🔥 Background Slideshow */
+.slideshow{
+  position:fixed;
+  width:100%;
+  height:100%;
+  z-index:-2;
+}
 
-    .info-box b {
-      color: #00eaff;
-    }
-  </style>
+.slideshow img{
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+  animation:slide 18s infinite;
+  transform:scale(1.1);
+}
+
+.slideshow img:nth-child(1){ animation-delay:0s; }
+.slideshow img:nth-child(2){ animation-delay:6s; }
+.slideshow img:nth-child(3){ animation-delay:12s; }
+
+@keyframes slide{
+  0%{opacity:0; transform:scale(1.2);}
+  10%{opacity:1;}
+  30%{opacity:1;}
+  40%{opacity:0;}
+  100%{opacity:0;}
+}
+
+/* 🔥 Dark Overlay */
+.overlay{
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+  z-index:-1;
+}
+
+/* 💎 Glass Box */
+.card{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  padding:30px 40px;
+  border-radius:20px;
+  backdrop-filter: blur(15px);
+  background: rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.2);
+  text-align:center;
+  color:white;
+  box-shadow:0 0 40px rgba(255,0,255,0.3);
+}
+
+/* 🔥 Neon Border Animation */
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:20px;
+  background:linear-gradient(45deg,#ff00cc,#3333ff,#00ffff,#ff00cc);
+  z-index:-1;
+  filter:blur(10px);
+  animation:glow 6s linear infinite;
+}
+
+@keyframes glow{
+  0%{filter:hue-rotate(0deg);}
+  100%{filter:hue-rotate(360deg);}
+}
+
+/* 🧠 Text Styling */
+h1{
+  font-size:26px;
+  margin-bottom:15px;
+  color:#ff4ddb;
+  text-shadow:0 0 15px #ff4ddb;
+}
+
+p{
+  font-size:15px;
+  line-height:1.7;
+}
+
+b{
+  color:#00eaff;
+}
+
+/* ✨ Floating Particles */
+.particles span{
+  position:absolute;
+  width:5px;
+  height:5px;
+  background:white;
+  border-radius:50%;
+  animation:float 10s linear infinite;
+}
+
+@keyframes float{
+  0%{
+    transform:translateY(100vh);
+    opacity:0;
+  }
+  50%{
+    opacity:1;
+  }
+  100%{
+    transform:translateY(-10vh);
+    opacity:0;
+  }
+}
+
+</style>
 </head>
-<body>
-  <div class="slideshow">
-    <img src="https://i.imgur.com/8D8s7Eb.jpeg" alt="Slide 1">
-    <img src="https://i.imgur.com/JkH0rZ8.jpeg" alt="Slide 2">
-    <img src="https://i.imgur.com/FHc9LDY.jpeg" alt="Slide 3">
-  </div>
 
-  <div class="info-box">
-    <h1>🤖 Rudra Bot — 24x7 Online</h1>
-    <p>📸 Insta ID: <b>@haryana_aala_sayzs</b><br/>
-    📱 WhatsApp: <b>8950386412</b><br/>
-    🔥 Always active, always stylish!</p>
-  </div>
+<body>
+
+<div class="slideshow">
+  <img src="https://i.imgur.com/8D8s7Eb.jpeg">
+  <img src="https://i.imgur.com/JkH0rZ8.jpeg">
+  <img src="https://i.imgur.com/FHc9LDY.jpeg">
+</div>
+
+<div class="overlay"></div>
+
+<!-- ✨ Particles -->
+<div class="particles">
+  <span style="left:10%; animation-delay:0s;"></span>
+  <span style="left:30%; animation-delay:2s;"></span>
+  <span style="left:50%; animation-delay:4s;"></span>
+  <span style="left:70%; animation-delay:1s;"></span>
+  <span style="left:90%; animation-delay:3s;"></span>
+</div>
+
+<!-- 💎 Main Card -->
+<div class="card">
+  <h1>🤖 Rudra Bot — 24x7 Online</h1>
+  <p>
+    📸 Insta ID: <b>@haryana_aala_sayzs</b><br><br>
+    📱 WhatsApp: <b>8950386412</b><br><br>
+    🔥 Always Active • Always Stylish
+  </p>
+</div>
+
 </body>
 </html>

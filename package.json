@@ -4,7 +4,7 @@
   "description": "Full merged bot (no dependency removed)",
   "main": "index.js",
   "scripts": {
-    "start": "node start.js",
+    "start": "node index.js",
     "start:direct": "node index.js",
     "dev": "nodemon index.js",
     "render-start": "node start-render.js",

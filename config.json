@@ -3,7 +3,7 @@
     "keyActive": "",
     "DeveloperMode": true,
     "autoCreateDB": true,
-    "allowInbox": false,
+    "allowInbox": true,
     "autoClean": true,
     "adminOnly": false,
     "keyAdminOnly": "",

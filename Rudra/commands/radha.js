@@ -15,7 +15,7 @@ module.exports.config = {
     cooldowns: 3,
 };
 
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "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";
 const MODEL_NAME = "llama-3.3-70b-versatile";
 
 const BASE_DIR = path.join(__dirname, "temporary");

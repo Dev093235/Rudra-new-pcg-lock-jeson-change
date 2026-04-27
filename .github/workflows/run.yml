@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]   # 👈 Node 18 use kar, 20 mat rakh
+        node-version: [20.x]   # 👈 Node 18 use kar, 20 mat rakh
 
     steps:
       - uses: actions/checkout@v2
